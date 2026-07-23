@@ -41,9 +41,13 @@ interface StoreValue {
   timeEntries: TimeEntry[]
   currentUserId: string
   currentUser: Employee
+  authenticatedUser: Employee
   isAdmin: boolean
+  isPreviewMode: boolean
+  canPreviewRoles: boolean
   cloudMode: boolean
   setCurrentUserId: (id: string) => void
+  exitPreview: () => void
   signOut: () => void
   addClient: (data: Omit<Client, 'id' | 'createdAt'>) => void
   updateClient: (id: string, data: Partial<Client>) => void
@@ -84,12 +88,22 @@ export function StoreProvider({
   const [currentUserId, setCurrentUserIdState] = useState<string>(
     initialData?.currentUserId ?? 'emp-1',
   )
+  const authenticatedUserId = initialData?.currentUserId ?? currentUserId
   const organizationId = initialData?.organizationId ?? 'demo-organization'
 
   const currentUser = useMemo(
     () => employees.find((e) => e.id === currentUserId) ?? employees[0],
     [employees, currentUserId],
   )
+  const authenticatedUser = useMemo(
+    () =>
+      employees.find((employee) => employee.id === authenticatedUserId) ??
+      employees[0],
+    [authenticatedUserId, employees],
+  )
+  const canPreviewRoles =
+    authenticatedUser.role === 'admin' || authenticatedUser.role === 'manager'
+  const isPreviewMode = cloudMode && currentUserId !== authenticatedUserId
 
   const handleCloudError = useCallback((message: string) => {
     toast.error(message)
@@ -108,10 +122,14 @@ export function StoreProvider({
 
   const setCurrentUserId = useCallback(
     (id: string) => {
-      if (!cloudMode) setCurrentUserIdState(id)
+      if (!cloudMode || canPreviewRoles) setCurrentUserIdState(id)
     },
-    [cloudMode],
+    [canPreviewRoles, cloudMode],
   )
+
+  const exitPreview = useCallback(() => {
+    setCurrentUserIdState(authenticatedUserId)
+  }, [authenticatedUserId])
 
   const signOut = useCallback(() => {
     if (!cloudMode) return
@@ -286,6 +304,10 @@ export function StoreProvider({
   }, [runCloud])
 
   const clockIn = useCallback((employeeId: string, jobId: string) => {
+    if (isPreviewMode) {
+      toast.info('Employee preview is read-only. Return to Admin View to make changes.')
+      return
+    }
     const now = new Date()
     const entry: TimeEntry = {
       id: cloudMode ? crypto.randomUUID() : uid('te'),
@@ -318,9 +340,13 @@ export function StoreProvider({
         status: 'active',
       }),
     )
-  }, [cloudMode, organizationId, runCloud])
+  }, [cloudMode, isPreviewMode, organizationId, runCloud])
 
   const clockOut = useCallback((entryId: string) => {
+    if (isPreviewMode) {
+      toast.info('Employee preview is read-only. Return to Admin View to make changes.')
+      return
+    }
     const clockOutAt = new Date().toISOString()
     setTimeEntries((prev) =>
       prev.map((t) =>
@@ -339,10 +365,14 @@ export function StoreProvider({
       createSupabaseClient()
         .rpc('stop_active_timer', { entry_id: entryId }),
     )
-  }, [runCloud])
+  }, [isPreviewMode, runCloud])
 
   const startBreak = useCallback(
     (entryId: string) => {
+      if (isPreviewMode) {
+        toast.info('Employee preview is read-only. Return to Admin View to make changes.')
+        return
+      }
       const breakStartedAt = new Date().toISOString()
       setTimeEntries((prev) =>
         prev.map((entry) =>
@@ -353,11 +383,15 @@ export function StoreProvider({
         createSupabaseClient().rpc('start_time_break', { entry_id: entryId }),
       )
     },
-    [runCloud],
+    [isPreviewMode, runCloud],
   )
 
   const endBreak = useCallback(
     (entryId: string) => {
+      if (isPreviewMode) {
+        toast.info('Employee preview is read-only. Return to Admin View to make changes.')
+        return
+      }
       const resumedAt = new Date().toISOString()
       setTimeEntries((prev) =>
         prev.map((entry) =>
@@ -374,11 +408,15 @@ export function StoreProvider({
         createSupabaseClient().rpc('end_time_break', { entry_id: entryId }),
       )
     },
-    [runCloud],
+    [isPreviewMode, runCloud],
   )
 
   const switchJob = useCallback(
     (entryId: string, jobId: string) => {
+      if (isPreviewMode) {
+        toast.info('Employee preview is read-only. Return to Admin View to make changes.')
+        return
+      }
       const switchedAt = new Date().toISOString()
       const newEntryId = cloudMode ? crypto.randomUUID() : uid('te')
       setTimeEntries((prev) => {
@@ -414,7 +452,7 @@ export function StoreProvider({
         }),
       )
     },
-    [cloudMode, runCloud],
+    [cloudMode, isPreviewMode, runCloud],
   )
 
   const reviewTimeEntry = useCallback(
@@ -449,9 +487,13 @@ export function StoreProvider({
     timeEntries,
     currentUserId,
     currentUser,
+    authenticatedUser,
     isAdmin: currentUser.role === 'admin' || currentUser.role === 'manager',
+    isPreviewMode,
+    canPreviewRoles,
     cloudMode,
     setCurrentUserId,
+    exitPreview,
     signOut,
     addClient,
     updateClient,

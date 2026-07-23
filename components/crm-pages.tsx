@@ -257,6 +257,7 @@ function EmployeeHomePage() {
     startBreak,
     endBreak,
     switchJob,
+    isPreviewMode,
   } = useStore()
   const now = useNow(1000)
   const activeEntry = timeEntries.find(
@@ -342,6 +343,7 @@ function EmployeeHomePage() {
                     <Button
                       size="lg"
                       className="h-12"
+                      disabled={isPreviewMode}
                       onClick={() => endBreak(activeEntry.id)}
                     >
                       <Play /> Resume work
@@ -351,6 +353,7 @@ function EmployeeHomePage() {
                       size="lg"
                       variant="secondary"
                       className="h-12"
+                      disabled={isPreviewMode}
                       onClick={() => startBreak(activeEntry.id)}
                     >
                       <Coffee /> Start break
@@ -360,6 +363,7 @@ function EmployeeHomePage() {
                     size="lg"
                     variant="outline"
                     className="h-12 border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    disabled={isPreviewMode}
                     onClick={() => clockOut(activeEntry.id)}
                   >
                     <Square /> Clock out
@@ -374,6 +378,7 @@ function EmployeeHomePage() {
                     id="quick-switch"
                     className={`${fieldClass} h-11 flex-1`}
                     value={selectedJobId}
+                    disabled={isPreviewMode}
                     onChange={(event) => setSelectedJobId(event.target.value)}
                   >
                     {assignedJobs.map((job) => (
@@ -388,7 +393,8 @@ function EmployeeHomePage() {
                     disabled={
                       !selectedJobId ||
                       selectedJobId === activeEntry.jobId ||
-                      Boolean(activeEntry.breakStartedAt)
+                      Boolean(activeEntry.breakStartedAt) ||
+                      isPreviewMode
                     }
                     onClick={() => switchJob(activeEntry.id, selectedJobId)}
                   >
@@ -419,8 +425,9 @@ function EmployeeHomePage() {
                     <button
                       key={job.id}
                       type="button"
+                      disabled={isPreviewMode}
                       onClick={() => clockIn(currentUser.id, job.id)}
-                      className="group rounded-xl border p-4 text-left transition hover:border-primary hover:bg-primary/5"
+                      className="group rounded-xl border p-4 text-left transition hover:border-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-transparent"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>

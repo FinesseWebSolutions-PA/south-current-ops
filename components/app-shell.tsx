@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
@@ -13,12 +14,15 @@ import {
   Zap,
   ChevronsUpDown,
   Check,
+  Eye,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,12 +55,36 @@ const EMPLOYEE_NAV: NavItem[] = [
 ]
 
 function RoleSwitcher() {
-  const { employees, currentUser, setCurrentUserId, cloudMode, signOut } = useStore()
+  const router = useRouter()
+  const {
+    employees,
+    currentUser,
+    authenticatedUser,
+    isPreviewMode,
+    canPreviewRoles,
+    setCurrentUserId,
+    exitPreview,
+    cloudMode,
+    signOut,
+  } = useStore()
+  const previewEmployees = employees.filter((employee) => employee.role === 'employee')
+  const switchView = (employeeId: string) => {
+    setCurrentUserId(employeeId)
+    router.push('/')
+  }
+  const returnToAdmin = () => {
+    exitPreview()
+    router.push('/')
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <button className="flex w-full items-center gap-3 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-2 text-left transition-colors hover:bg-sidebar-accent">
+          <button
+            className="flex w-full items-center gap-3 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-2 text-left transition-colors hover:bg-sidebar-accent"
+            aria-label="Switch role view"
+          >
             <Avatar className="size-9">
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                 {currentUser.initials}
@@ -72,26 +100,94 @@ function RoleSwitcher() {
                   : currentUser.role === 'manager'
                     ? 'Manager'
                     : 'Employee'}
+                {isPreviewMode && ' preview'}
               </p>
             </div>
+            {isPreviewMode && (
+              <Badge className="hidden bg-primary/15 text-primary hover:bg-primary/15 lg:inline-flex">
+                Preview
+              </Badge>
+            )}
             <ChevronsUpDown className="size-4 text-sidebar-foreground/60" />
           </button>
         }
       />
-      <DropdownMenuContent align="start" className="w-60">
+      <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel>
-          {cloudMode ? 'Signed-in account' : 'Switch user (demo)'}
+          {cloudMode ? (
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="size-3.5" />
+              Signed in as {authenticatedUser.name}
+            </span>
+          ) : (
+            'Switch role view (demo)'
+          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {cloudMode ? (
-          <DropdownMenuItem onClick={signOut} className="gap-2">
-            <LogOut className="size-4" />
-            Sign out
-          </DropdownMenuItem>
+          <>
+            {isPreviewMode && (
+              <>
+                <DropdownMenuItem onClick={returnToAdmin} className="gap-2 py-2">
+                  <ShieldCheck className="size-4 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">Return to admin view</p>
+                    <p className="text-xs text-muted-foreground">
+                      {authenticatedUser.name}
+                    </p>
+                  </div>
+                  <Check className="size-4 text-primary" />
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+
+            {canPreviewRoles && (
+              <>
+                <DropdownMenuLabel className="flex items-center gap-2">
+                  <Eye className="size-3.5" />
+                  Preview employee experience
+                </DropdownMenuLabel>
+                {previewEmployees.map((employee) => (
+                  <DropdownMenuItem
+                    key={employee.id}
+                    onClick={() => switchView(employee.id)}
+                    className="gap-2 py-2"
+                  >
+                    <Avatar className="size-7">
+                      <AvatarFallback className="text-[10px] font-semibold">
+                        {employee.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{employee.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {employee.title}
+                      </p>
+                    </div>
+                    {employee.id === currentUser.id && (
+                      <Check className="size-4 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                {!previewEmployees.length && (
+                  <p className="px-2 py-2 text-xs text-muted-foreground">
+                    Add an employee to preview the field experience.
+                  </p>
+                )}
+                <DropdownMenuSeparator />
+              </>
+            )}
+
+            <DropdownMenuItem onClick={signOut} className="gap-2">
+              <LogOut className="size-4" />
+              Sign out
+            </DropdownMenuItem>
+          </>
         ) : employees.map((e) => (
           <DropdownMenuItem
             key={e.id}
-            onClick={() => setCurrentUserId(e.id)}
+            onClick={() => switchView(e.id)}
             className="gap-2"
           >
             <Avatar className="size-7">
@@ -113,8 +209,24 @@ function RoleSwitcher() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { isAdmin } = useStore()
+  const router = useRouter()
+  const {
+    isAdmin,
+    isPreviewMode,
+    currentUser,
+    authenticatedUser,
+    exitPreview,
+  } = useStore()
   const items = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV
+  const adminViewLabel =
+    authenticatedUser.role === 'manager' ? 'Manager View' : 'Admin View'
+  const employeeRouteAllowed = EMPLOYEE_NAV.some((item) =>
+    item.href === '/' ? pathname === '/' : pathname.startsWith(item.href),
+  )
+
+  useEffect(() => {
+    if (!isAdmin && !employeeRouteAllowed) router.replace('/')
+  }, [employeeRouteAllowed, isAdmin, router])
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -208,13 +320,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )
           })}
         </nav>
+        {isPreviewMode && (
+          <div className="sticky top-16 z-20 mt-16 border-b border-primary/25 bg-primary/10 px-4 py-3 backdrop-blur md:top-0 md:mt-0 md:px-8">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <Eye className="size-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    Employee Preview — {currentUser.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Time controls are read-only while previewing.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="bg-background"
+                onClick={() => {
+                  exitPreview()
+                  router.push('/')
+                }}
+              >
+                <ShieldCheck />
+                Return to {adminViewLabel}
+              </Button>
+            </div>
+          </div>
+        )}
         <main
           className={cn(
             'flex-1 px-4 py-6 md:px-8 md:py-8',
-            !isAdmin && 'pb-24 pt-24 md:pb-8 md:pt-8',
+            !isAdmin &&
+              (isPreviewMode
+                ? 'pb-24 pt-6 md:pb-8 md:pt-8'
+                : 'pb-24 pt-24 md:pb-8 md:pt-8'),
           )}
         >
-          {children}
+          {(isAdmin || employeeRouteAllowed) && children}
         </main>
       </div>
     </div>
