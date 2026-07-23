@@ -5,7 +5,18 @@ export function entryDurationMs(entry: TimeEntry, now: number = Date.now()) {
   const start = new Date(entry.clockIn).getTime()
   const end = entry.clockOut ? new Date(entry.clockOut).getTime() : now
   const gross = Math.max(0, end - start)
-  return Math.max(0, gross - entry.breakMinutes * 60_000)
+  const activeBreak = entry.breakStartedAt
+    ? Math.max(0, now - new Date(entry.breakStartedAt).getTime())
+    : 0
+  return Math.max(0, gross - entry.breakMinutes * 60_000 - activeBreak)
+}
+
+export function activeBreakDurationMs(
+  entry: TimeEntry,
+  now: number = Date.now(),
+) {
+  if (!entry.breakStartedAt) return 0
+  return Math.max(0, now - new Date(entry.breakStartedAt).getTime())
 }
 
 /** Worked hours (decimal) for an entry. */
@@ -85,4 +96,3 @@ export function formatCurrency(amount: number) {
     maximumFractionDigits: 0,
   }).format(amount)
 }
-

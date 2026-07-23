@@ -19,6 +19,11 @@ When Supabase variables are configured, the app enables:
 - one active timer per employee;
 - deliberately no GPS or location collection.
 
+The authenticated experience is role-specific:
+
+- admins and managers receive the operations dashboard, crew status, customer/job management, time approvals, schedule, and reports;
+- employees receive a mobile-first My Day screen, assigned jobs only, one-tap clock in/out, paid-time calculation, break controls, quick job switching, schedule, and personal time history.
+
 Without the variables, the app runs in fictional demo mode so previews and builds still work.
 
 ## Supabase setup

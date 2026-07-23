@@ -9,6 +9,7 @@ import {
   Clock,
   CalendarDays,
   FileBarChart,
+  ClipboardCheck,
   Zap,
   ChevronsUpDown,
   Check,
@@ -31,16 +32,22 @@ type NavItem = {
   href: string
   label: string
   icon: typeof LayoutDashboard
-  adminOnly?: boolean
 }
 
-const NAV: NavItem[] = [
+const ADMIN_NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/clients', label: 'Clients', icon: Users, adminOnly: true },
+  { href: '/clients', label: 'Clients', icon: Users },
   { href: '/jobs', label: 'Jobs', icon: Briefcase },
-  { href: '/time', label: 'Time Tracking', icon: Clock },
+  { href: '/time', label: 'Time Approvals', icon: ClipboardCheck },
   { href: '/schedule', label: 'Schedule', icon: CalendarDays },
-  { href: '/reports', label: 'Reports', icon: FileBarChart, adminOnly: true },
+  { href: '/reports', label: 'Reports', icon: FileBarChart },
+]
+
+const EMPLOYEE_NAV: NavItem[] = [
+  { href: '/', label: 'My Day', icon: Clock },
+  { href: '/jobs', label: 'My Jobs', icon: Briefcase },
+  { href: '/schedule', label: 'Schedule', icon: CalendarDays },
+  { href: '/time', label: 'My Time', icon: FileBarChart },
 ]
 
 function RoleSwitcher() {
@@ -60,7 +67,11 @@ function RoleSwitcher() {
                 {currentUser.name}
               </p>
               <p className="truncate text-xs text-sidebar-foreground/60">
-                {currentUser.role === 'admin' ? 'Admin' : 'Employee'}
+                {currentUser.role === 'admin'
+                  ? 'Admin'
+                  : currentUser.role === 'manager'
+                    ? 'Manager'
+                    : 'Employee'}
               </p>
             </div>
             <ChevronsUpDown className="size-4 text-sidebar-foreground/60" />
@@ -103,7 +114,7 @@ function RoleSwitcher() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { isAdmin } = useStore()
-  const items = NAV.filter((n) => !n.adminOnly || isAdmin)
+  const items = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -164,29 +175,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="flex flex-1 flex-col md:pl-64">
-        <nav className="flex gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2 md:hidden mt-16">
+        <nav
+          className={cn(
+            'md:hidden',
+            isAdmin
+              ? 'mt-16 flex gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2'
+              : 'fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-card px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lg',
+          )}
+        >
           {items.map((item) => {
             const active =
               item.href === '/'
                 ? pathname === '/'
                 : pathname.startsWith(item.href)
+            const Icon = item.icon
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'shrink-0 rounded-md px-3 py-1.5 text-sm font-medium',
+                  isAdmin
+                    ? 'shrink-0 rounded-md px-3 py-1.5 text-sm font-medium'
+                    : 'flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium',
                   active
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground',
                 )}
               >
+                {!isAdmin && <Icon className="size-4" />}
                 {item.label}
               </Link>
             )
           })}
         </nav>
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
+        <main
+          className={cn(
+            'flex-1 px-4 py-6 md:px-8 md:py-8',
+            !isAdmin && 'pb-24 pt-24 md:pb-8 md:pt-8',
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
   )

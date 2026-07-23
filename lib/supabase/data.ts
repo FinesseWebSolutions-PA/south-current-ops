@@ -89,6 +89,8 @@ function mapTimeEntry(row: Row): TimeEntry {
     clockIn,
     clockOut: typeof row.clock_out === 'string' ? row.clock_out : null,
     breakMinutes: Number(row.break_minutes ?? 0),
+    breakStartedAt:
+      typeof row.break_started_at === 'string' ? row.break_started_at : null,
     notes: asString(row.notes),
     manual: Boolean(row.manual),
     status:

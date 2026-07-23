@@ -22,6 +22,18 @@ function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
 }
 
+function settledBreakMinutes(entry: TimeEntry, at: string) {
+  if (!entry.breakStartedAt) return entry.breakMinutes
+  const elapsed = Math.max(
+    1,
+    Math.ceil(
+      (new Date(at).getTime() - new Date(entry.breakStartedAt).getTime()) /
+        60_000,
+    ),
+  )
+  return entry.breakMinutes + elapsed
+}
+
 interface StoreValue {
   employees: Employee[]
   clients: Client[]
@@ -42,6 +54,9 @@ interface StoreValue {
   deleteTimeEntry: (id: string) => void
   clockIn: (employeeId: string, jobId: string) => void
   clockOut: (entryId: string) => void
+  startBreak: (entryId: string) => void
+  endBreak: (entryId: string) => void
+  switchJob: (entryId: string, jobId: string) => void
   reviewTimeEntry: (entryId: string, decision: 'approved' | 'rejected') => void
 }
 
@@ -239,6 +254,7 @@ export function StoreProvider({
         clock_in: entry.clockIn,
         clock_out: entry.clockOut,
         break_minutes: entry.breakMinutes,
+        break_started_at: entry.breakStartedAt ?? null,
         notes: entry.notes || null,
         manual: entry.manual,
         status: entry.status,
@@ -254,6 +270,7 @@ export function StoreProvider({
     if (data.clockIn !== undefined) update.clock_in = data.clockIn
     if (data.clockOut !== undefined) update.clock_out = data.clockOut
     if (data.breakMinutes !== undefined) update.break_minutes = data.breakMinutes
+    if (data.breakStartedAt !== undefined) update.break_started_at = data.breakStartedAt
     if (data.notes !== undefined) update.notes = data.notes || null
     if (data.status !== undefined) update.status = data.status
     runCloud(() =>
@@ -278,6 +295,7 @@ export function StoreProvider({
       clockIn: now.toISOString(),
       clockOut: null,
       breakMinutes: 0,
+      breakStartedAt: null,
       notes: '',
       manual: false,
       status: 'active',
@@ -306,16 +324,98 @@ export function StoreProvider({
     const clockOutAt = new Date().toISOString()
     setTimeEntries((prev) =>
       prev.map((t) =>
-        t.id === entryId ? { ...t, clockOut: clockOutAt, status: 'submitted' } : t,
+        t.id === entryId
+          ? {
+              ...t,
+              breakMinutes: settledBreakMinutes(t, clockOutAt),
+              breakStartedAt: null,
+              clockOut: clockOutAt,
+              status: 'submitted',
+            }
+          : t,
       ),
     )
     runCloud(() =>
       createSupabaseClient()
-        .from('time_entries')
-        .update({ clock_out: clockOutAt, status: 'submitted' })
-        .eq('id', entryId),
+        .rpc('stop_active_timer', { entry_id: entryId }),
     )
   }, [runCloud])
+
+  const startBreak = useCallback(
+    (entryId: string) => {
+      const breakStartedAt = new Date().toISOString()
+      setTimeEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === entryId ? { ...entry, breakStartedAt } : entry,
+        ),
+      )
+      runCloud(() =>
+        createSupabaseClient().rpc('start_time_break', { entry_id: entryId }),
+      )
+    },
+    [runCloud],
+  )
+
+  const endBreak = useCallback(
+    (entryId: string) => {
+      const resumedAt = new Date().toISOString()
+      setTimeEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === entryId
+            ? {
+                ...entry,
+                breakMinutes: settledBreakMinutes(entry, resumedAt),
+                breakStartedAt: null,
+              }
+            : entry,
+        ),
+      )
+      runCloud(() =>
+        createSupabaseClient().rpc('end_time_break', { entry_id: entryId }),
+      )
+    },
+    [runCloud],
+  )
+
+  const switchJob = useCallback(
+    (entryId: string, jobId: string) => {
+      const switchedAt = new Date().toISOString()
+      const newEntryId = cloudMode ? crypto.randomUUID() : uid('te')
+      setTimeEntries((prev) => {
+        const active = prev.find((entry) => entry.id === entryId)
+        if (!active) return prev
+        const closed: TimeEntry = {
+          ...active,
+          breakMinutes: settledBreakMinutes(active, switchedAt),
+          breakStartedAt: null,
+          clockOut: switchedAt,
+          status: 'submitted',
+        }
+        const next: TimeEntry = {
+          id: newEntryId,
+          employeeId: active.employeeId,
+          jobId,
+          date: switchedAt.slice(0, 10),
+          clockIn: switchedAt,
+          clockOut: null,
+          breakMinutes: 0,
+          breakStartedAt: null,
+          notes: '',
+          manual: false,
+          status: 'active',
+        }
+        return [next, ...prev.map((entry) => (entry.id === entryId ? closed : entry))]
+      })
+      runCloud(() =>
+        createSupabaseClient().rpc('switch_active_job', {
+          entry_id: entryId,
+          new_entry_id: newEntryId,
+          new_job_id: jobId,
+        }),
+      )
+    },
+    [cloudMode, runCloud],
+  )
 
   const reviewTimeEntry = useCallback(
     (entryId: string, decision: 'approved' | 'rejected') => {
@@ -362,6 +462,9 @@ export function StoreProvider({
     deleteTimeEntry,
     clockIn,
     clockOut,
+    startBreak,
+    endBreak,
+    switchJob,
     reviewTimeEntry,
   }
 

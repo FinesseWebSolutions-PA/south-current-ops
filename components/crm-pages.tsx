@@ -5,11 +5,17 @@ import { useState, type FormEvent } from 'react'
 import {
   ArrowRight,
   Briefcase,
+  Coffee,
+  ClipboardCheck,
   CheckCircle2,
   Clock3,
   DollarSign,
   MapPinOff,
+  Pause,
+  Play,
   Plus,
+  Repeat2,
+  Square,
   Users,
   Zap,
 } from 'lucide-react'
@@ -39,6 +45,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useNow } from '@/hooks/use-now'
 import { useStore } from '@/lib/store'
 import {
+  activeBreakDurationMs,
   entryDurationMs,
   entryHours,
   formatClock,
@@ -100,7 +107,12 @@ function EmptyRow({ colSpan, message }: { colSpan: number; message: string }) {
 }
 
 export function DashboardPage() {
-  const { jobs, clients, employees, timeEntries, currentUser } = useStore()
+  const { isAdmin } = useStore()
+  return isAdmin ? <AdminDashboardPage /> : <EmployeeHomePage />
+}
+
+function AdminDashboardPage() {
+  const { jobs, clients, employees, timeEntries } = useStore()
   const now = useNow(1000)
   const { start, end } = getWeekRange()
   const weekEntries = timeEntries.filter((entry) => {
@@ -108,8 +120,9 @@ export function DashboardPage() {
     return date >= start && date < end
   })
   const weekHours = weekEntries.reduce((sum, entry) => sum + entryHours(entry, now), 0)
-  const activeEntry = timeEntries.find(
-    (entry) => entry.employeeId === currentUser.id && !entry.clockOut,
+  const activeEntries = timeEntries.filter((entry) => !entry.clockOut)
+  const pendingApprovals = timeEntries.filter(
+    (entry) => entry.status === 'submitted',
   )
   const recentJobs = [...jobs]
     .sort((a, b) => b.scheduledDate.localeCompare(a.scheduledDate))
@@ -140,15 +153,15 @@ export function DashboardPage() {
           icon={Users}
         />
         <MetricCard
-          label="Crew members"
-          value={String(employees.length)}
-          detail="Admin and field employees"
+          label="Crew active now"
+          value={String(activeEntries.length)}
+          detail={`${activeEntries.filter((entry) => entry.breakStartedAt).length} currently on break`}
           icon={Zap}
         />
         <MetricCard
-          label="Hours this week"
-          value={formatHours(weekHours)}
-          detail={`${weekEntries.length} time entries`}
+          label="Time approvals"
+          value={String(pendingApprovals.length)}
+          detail={`${formatHours(weekHours)} recorded this week`}
           icon={Clock3}
         />
       </div>
@@ -188,38 +201,292 @@ export function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{activeEntry ? 'Clocked in' : 'Ready to work'}</CardTitle>
-            <CardDescription>
-              {activeEntry
-                ? jobs.find((job) => job.id === activeEntry.jobId)?.title
-                : `Signed in as ${currentUser.name}`}
-            </CardDescription>
+            <CardTitle>Crew right now</CardTitle>
+            <CardDescription>Live timer status without GPS tracking.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-xl bg-sidebar p-5 text-sidebar-foreground">
-              <p className="text-xs uppercase tracking-[0.18em] text-sidebar-foreground/60">
-                Current timer
-              </p>
-              <p className="mt-2 font-mono text-3xl font-semibold">
-                {activeEntry ? formatStopwatch(entryDurationMs(activeEntry, now)) : '0:00:00'}
-              </p>
-              <Button className="mt-5 w-full" render={<Link href="/time" />}>
-                {activeEntry ? 'Open time tracker' : 'Clock in'}
-              </Button>
-            </div>
-            <div className="mt-4 flex items-start gap-3 rounded-lg border p-3">
-              <MapPinOff className="mt-0.5 size-4 shrink-0 text-accent" />
-              <div>
-                <p className="font-medium">No GPS tracking</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  South Current records job time only—never employee location.
-                </p>
+          <CardContent className="grid gap-2">
+            {activeEntries.length === 0 && (
+              <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
+                No employees are clocked in.
               </div>
+            )}
+            {activeEntries.map((entry) => (
+              <div key={entry.id} className="flex items-center gap-3 rounded-lg border p-3">
+                <div
+                  className={`size-2.5 rounded-full ${
+                    entry.breakStartedAt ? 'bg-chart-4' : 'bg-accent'
+                  }`}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">
+                    {employees.find((employee) => employee.id === entry.employeeId)?.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {entry.breakStartedAt
+                      ? 'On break'
+                      : jobs.find((job) => job.id === entry.jobId)?.title}
+                  </p>
+                </div>
+                <span className="font-mono text-xs">
+                  {formatStopwatch(entryDurationMs(entry, now))}
+                </span>
+              </div>
+            ))}
+            <Button className="mt-2 w-full" variant="outline" render={<Link href="/time" />}>
+              Review time entries
+            </Button>
+            <div className="flex items-start gap-2 pt-2 text-xs text-muted-foreground">
+              <MapPinOff className="size-4 shrink-0 text-accent" />
+              Timer status only. Employee location is never collected.
             </div>
           </CardContent>
         </Card>
       </div>
     </>
+  )
+}
+
+function EmployeeHomePage() {
+  const {
+    currentUser,
+    jobs,
+    clients,
+    timeEntries,
+    clockIn,
+    clockOut,
+    startBreak,
+    endBreak,
+    switchJob,
+  } = useStore()
+  const now = useNow(1000)
+  const activeEntry = timeEntries.find(
+    (entry) => entry.employeeId === currentUser.id && !entry.clockOut,
+  )
+  const assignedJobs = jobs.filter(
+    (job) =>
+      job.assignedTo.includes(currentUser.id) &&
+      !['completed', 'invoiced'].includes(job.status),
+  )
+  const [selectedJobId, setSelectedJobId] = useState(
+    activeEntry?.jobId ?? assignedJobs[0]?.id ?? '',
+  )
+  const todayKey = toDateKey(new Date())
+  const todayEntries = timeEntries.filter(
+    (entry) => entry.employeeId === currentUser.id && entry.date === todayKey,
+  )
+  const todayHours = todayEntries.reduce(
+    (total, entry) => total + entryHours(entry, now),
+    0,
+  )
+  const activeJob = jobs.find((job) => job.id === activeEntry?.jobId)
+
+  return (
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-5">
+        <p className="text-sm text-muted-foreground">
+          {new Date().toLocaleDateString('en-CA', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+          Hi {currentUser.name.split(' ')[0]}, here’s your day.
+        </h1>
+      </div>
+
+      <Card className="overflow-visible ring-2 ring-primary/25">
+        <CardContent className="p-0">
+          {activeEntry ? (
+            <div>
+              <div
+                className={`rounded-t-xl p-5 text-sidebar-foreground sm:p-7 ${
+                  activeEntry.breakStartedAt ? 'bg-chart-4' : 'bg-sidebar'
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="size-2.5 rounded-full bg-primary" />
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
+                        {activeEntry.breakStartedAt ? 'Break in progress' : 'Clocked in'}
+                      </p>
+                    </div>
+                    <h2 className="mt-3 text-xl font-semibold">
+                      {activeEntry.breakStartedAt ? 'Take your break' : activeJob?.title}
+                    </h2>
+                    <p className="mt-1 text-sm opacity-70">
+                      {activeEntry.breakStartedAt
+                        ? `${activeJob?.code} · ${activeJob?.title}`
+                        : `${activeJob?.code} · ${
+                            clients.find((client) => client.id === activeJob?.clientId)?.name
+                          }`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wider opacity-60">
+                      {activeEntry.breakStartedAt ? 'Break time' : 'Worked'}
+                    </p>
+                    <p className="mt-1 font-mono text-3xl font-semibold sm:text-4xl">
+                      {formatStopwatch(
+                        activeEntry.breakStartedAt
+                          ? activeBreakDurationMs(activeEntry, now)
+                          : entryDurationMs(activeEntry, now),
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                  {activeEntry.breakStartedAt ? (
+                    <Button
+                      size="lg"
+                      className="h-12"
+                      onClick={() => endBreak(activeEntry.id)}
+                    >
+                      <Play /> Resume work
+                    </Button>
+                  ) : (
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      className="h-12"
+                      onClick={() => startBreak(activeEntry.id)}
+                    >
+                      <Coffee /> Start break
+                    </Button>
+                  )}
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-12 border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    onClick={() => clockOut(activeEntry.id)}
+                  >
+                    <Square /> Clock out
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6">
+                <Label htmlFor="quick-switch">Switch to another assigned job</Label>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <select
+                    id="quick-switch"
+                    className={`${fieldClass} h-11 flex-1`}
+                    value={selectedJobId}
+                    onChange={(event) => setSelectedJobId(event.target.value)}
+                  >
+                    {assignedJobs.map((job) => (
+                      <option key={job.id} value={job.id}>
+                        {job.code} — {job.title}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    className="h-11"
+                    variant="outline"
+                    disabled={
+                      !selectedJobId ||
+                      selectedJobId === activeEntry.jobId ||
+                      Boolean(activeEntry.breakStartedAt)
+                    }
+                    onClick={() => switchJob(activeEntry.id, selectedJobId)}
+                  >
+                    <Repeat2 /> Switch job
+                  </Button>
+                </div>
+                {activeEntry.breakStartedAt && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Resume work before switching jobs.
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="p-5 sm:p-7">
+              <div className="mx-auto max-w-xl text-center">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+                  <Clock3 className="size-7" />
+                </div>
+                <h2 className="mt-4 text-xl font-semibold">What are you working on?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Choose an assigned job and start your timer. No location tracking.
+                </p>
+              </div>
+              {assignedJobs.length ? (
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {assignedJobs.slice(0, 4).map((job) => (
+                    <button
+                      key={job.id}
+                      type="button"
+                      onClick={() => clockIn(currentUser.id, job.id)}
+                      className="group rounded-xl border p-4 text-left transition hover:border-primary hover:bg-primary/5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">{job.code}</p>
+                          <p className="mt-1 font-semibold">{job.title}</p>
+                        </div>
+                        <div className="rounded-lg bg-primary p-2 text-primary-foreground transition group-hover:scale-105">
+                          <Play className="size-4" />
+                        </div>
+                      </div>
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        {clients.find((client) => client.id === job.clientId)?.name} · {job.city}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6 rounded-xl border border-dashed p-6 text-center">
+                  <p className="font-medium">No jobs assigned</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Ask a manager to assign your next job.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          label="Worked today"
+          value={formatHours(todayHours)}
+          detail={`${todayEntries.length} job ${todayEntries.length === 1 ? 'entry' : 'entries'}`}
+          icon={Clock3}
+        />
+        <MetricCard
+          label="Assigned jobs"
+          value={String(assignedJobs.length)}
+          detail="Open work available to you"
+          icon={Briefcase}
+        />
+        <MetricCard
+          label="Awaiting approval"
+          value={String(
+            timeEntries.filter(
+              (entry) =>
+                entry.employeeId === currentUser.id && entry.status === 'submitted',
+            ).length,
+          )}
+          detail="Submitted time entries"
+          icon={CheckCircle2}
+        />
+      </div>
+
+      <div className="mt-5 flex items-start gap-3 rounded-xl border bg-card p-4">
+        <MapPinOff className="mt-0.5 size-5 shrink-0 text-accent" />
+        <div>
+          <p className="font-medium">Your location stays private</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The app records the job and time you select. It does not collect GPS,
+            geofencing, routes, or background location.
+          </p>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -330,8 +597,11 @@ export function ClientsPage() {
 }
 
 export function JobsPage() {
-  const { jobs, clients, employees, addJob, isAdmin } = useStore()
+  const { jobs, clients, employees, currentUser, addJob, isAdmin } = useStore()
   const [showForm, setShowForm] = useState(false)
+  const visibleJobs = isAdmin
+    ? jobs
+    : jobs.filter((job) => job.assignedTo.includes(currentUser.id))
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -354,7 +624,14 @@ export function JobsPage() {
 
   return (
     <>
-      <PageHeader title="Jobs" description="Plan, assign, and follow electrical work from lead to invoice.">
+      <PageHeader
+        title={isAdmin ? 'Jobs' : 'My jobs'}
+        description={
+          isAdmin
+            ? 'Plan, assign, and follow electrical work from lead to invoice.'
+            : 'The jobs currently assigned to you, with the details needed in the field.'
+        }
+      >
         {isAdmin && (
           <Button onClick={() => setShowForm((value) => !value)}>
             <Plus /> New job
@@ -428,8 +705,13 @@ export function JobsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {jobs.length === 0 && <EmptyRow colSpan={5} message="No jobs yet." />}
-              {jobs.map((job) => (
+              {visibleJobs.length === 0 && (
+                <EmptyRow
+                  colSpan={5}
+                  message={isAdmin ? 'No jobs yet.' : 'No jobs are assigned to you.'}
+                />
+              )}
+              {visibleJobs.map((job) => (
                 <TableRow key={job.id}>
                   <TableCell>
                     <div className="font-medium">{job.title}</div>
@@ -457,102 +739,178 @@ export function JobsPage() {
 }
 
 export function TimePage() {
+  const { isAdmin } = useStore()
+  return isAdmin ? <AdminTimePage /> : <EmployeeTimePage />
+}
+
+function EmployeeTimePage() {
+  const { jobs, timeEntries, currentUser } = useStore()
+  const now = useNow(1000)
+  const entries = timeEntries.filter(
+    (entry) => entry.employeeId === currentUser.id,
+  )
+  const { start, end } = getWeekRange()
+  const weekEntries = entries.filter((entry) => {
+    const date = new Date(`${entry.date}T00:00:00`)
+    return date >= start && date < end
+  })
+  const weekHours = weekEntries.reduce(
+    (total, entry) => total + entryHours(entry, now),
+    0,
+  )
+
+  return (
+    <>
+      <PageHeader
+        title="My time"
+        description="Your recorded hours and approval status."
+      >
+        <Button render={<Link href="/" />}>
+          <Clock3 /> Open clock
+        </Button>
+      </PageHeader>
+
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          label="This week"
+          value={formatHours(weekHours)}
+          detail={`${weekEntries.length} time entries`}
+          icon={Clock3}
+        />
+        <MetricCard
+          label="Awaiting approval"
+          value={String(entries.filter((entry) => entry.status === 'submitted').length)}
+          detail="Submitted to your manager"
+          icon={Pause}
+        />
+        <MetricCard
+          label="Approved"
+          value={String(entries.filter((entry) => entry.status === 'approved').length)}
+          detail="Payroll-ready entries"
+          icon={CheckCircle2}
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent entries</CardTitle>
+          <CardDescription>Break time is excluded from worked hours.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Job</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Clock</TableHead>
+                <TableHead>Break</TableHead>
+                <TableHead>Hours</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.length === 0 && <EmptyRow colSpan={6} message="No time entries yet." />}
+              {entries.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-medium">
+                    {jobs.find((job) => job.id === entry.jobId)?.title}
+                  </TableCell>
+                  <TableCell>{formatDate(entry.date)}</TableCell>
+                  <TableCell>
+                    {formatClock(entry.clockIn)}
+                    {entry.clockOut ? `–${formatClock(entry.clockOut)}` : '–Now'}
+                  </TableCell>
+                  <TableCell>{entry.breakMinutes}m</TableCell>
+                  <TableCell className="font-mono">
+                    {formatHours(entryHours(entry, now))}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={entry.status === 'approved' ? 'default' : 'outline'}
+                      className="capitalize"
+                    >
+                      {entry.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </>
+  )
+}
+
+function AdminTimePage() {
   const {
     jobs,
     employees,
     timeEntries,
-    currentUser,
-    isAdmin,
-    clockIn,
-    clockOut,
     reviewTimeEntry,
   } = useStore()
   const now = useNow(1000)
-  const [jobId, setJobId] = useState(
-    jobs.find((job) => !['completed', 'invoiced'].includes(job.status))?.id ?? '',
-  )
-  const activeEntry = timeEntries.find(
-    (entry) => entry.employeeId === currentUser.id && !entry.clockOut,
-  )
-  const visibleEntries = isAdmin
-    ? timeEntries
-    : timeEntries.filter((entry) => entry.employeeId === currentUser.id)
+  const pending = timeEntries.filter((entry) => entry.status === 'submitted')
+  const active = timeEntries.filter((entry) => entry.status === 'active')
+  const approved = timeEntries.filter((entry) => entry.status === 'approved')
 
   return (
     <>
-      <PageHeader title="Time tracking" description="Job-based time records with no GPS or location monitoring." />
+      <PageHeader
+        title="Time approvals"
+        description="Review submitted labour and see live crew status. No GPS data is collected."
+      />
 
-      <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>{activeEntry ? 'Shift in progress' : 'Start a job timer'}</CardTitle>
-            <CardDescription>{currentUser.name}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {activeEntry ? (
-              <div className="rounded-xl bg-sidebar p-5 text-sidebar-foreground">
-                <p className="text-sm text-sidebar-foreground/70">
-                  {jobs.find((job) => job.id === activeEntry.jobId)?.title}
-                </p>
-                <p className="mt-2 font-mono text-4xl font-semibold">
-                  {formatStopwatch(entryDurationMs(activeEntry, now))}
-                </p>
-                <p className="mt-2 text-xs text-sidebar-foreground/60">
-                  Started {formatClock(activeEntry.clockIn)}
-                </p>
-                <Button className="mt-5 w-full" onClick={() => clockOut(activeEntry.id)}>
-                  Clock out
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                <Label htmlFor="timer-job">Choose a job</Label>
-                <select
-                  id="timer-job"
-                  className={fieldClass}
-                  value={jobId}
-                  onChange={(event) => setJobId(event.target.value)}
-                >
-                  {jobs.filter((job) => !['completed', 'invoiced'].includes(job.status)).map((job) => (
-                    <option key={job.id} value={job.id}>{job.code} — {job.title}</option>
-                  ))}
-                </select>
-                <Button disabled={!jobId} onClick={() => clockIn(currentUser.id, jobId)}>
-                  <Clock3 /> Clock in
-                </Button>
-              </div>
-            )}
-            <div className="mt-4 flex gap-3 rounded-lg border p-3">
-              <MapPinOff className="mt-0.5 size-4 shrink-0 text-accent" />
-              <p className="text-xs text-muted-foreground">
-                No GPS, geofencing, route history, or background location collection.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          label="Needs review"
+          value={String(pending.length)}
+          detail="Submitted employee entries"
+          icon={ClipboardCheck}
+        />
+        <MetricCard
+          label="Active now"
+          value={String(active.length)}
+          detail={`${active.filter((entry) => entry.breakStartedAt).length} on break`}
+          icon={Clock3}
+        />
+        <MetricCard
+          label="Approved"
+          value={String(approved.length)}
+          detail="Payroll-ready entries"
+          icon={CheckCircle2}
+        />
+      </div>
 
-        <Card>
+      <Card>
           <CardHeader>
-            <CardTitle>{isAdmin ? 'Team entries' : 'My entries'}</CardTitle>
-            <CardDescription>Recent labour recorded against jobs.</CardDescription>
+            <CardTitle>Team entries</CardTitle>
+            <CardDescription>Pending entries appear first for fast review.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  {isAdmin && <TableHead>Employee</TableHead>}
+                  <TableHead>Employee</TableHead>
                   <TableHead>Job</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Hours</TableHead>
                   <TableHead>Status</TableHead>
-                  {isAdmin && <TableHead className="text-right">Review</TableHead>}
+                  <TableHead>Break</TableHead>
+                  <TableHead className="text-right">Review</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleEntries.length === 0 && <EmptyRow colSpan={isAdmin ? 6 : 4} message="No time entries yet." />}
-                {visibleEntries.map((entry) => (
+                {timeEntries.length === 0 && <EmptyRow colSpan={7} message="No time entries yet." />}
+                {[...timeEntries]
+                  .sort((a, b) => {
+                    if (a.status === 'submitted' && b.status !== 'submitted') return -1
+                    if (b.status === 'submitted' && a.status !== 'submitted') return 1
+                    return b.clockIn.localeCompare(a.clockIn)
+                  })
+                  .map((entry) => (
                   <TableRow key={entry.id}>
-                    {isAdmin && <TableCell>{employees.find((employee) => employee.id === entry.employeeId)?.name}</TableCell>}
+                    <TableCell>{employees.find((employee) => employee.id === entry.employeeId)?.name}</TableCell>
                     <TableCell>{jobs.find((job) => job.id === entry.jobId)?.title}</TableCell>
                     <TableCell>{formatDate(entry.date)}</TableCell>
                     <TableCell className="font-mono">{formatHours(entryHours(entry, now))}</TableCell>
@@ -564,8 +922,10 @@ export function TimePage() {
                         {entry.status}
                       </Badge>
                     </TableCell>
-                    {isAdmin && (
-                      <TableCell>
+                    <TableCell>
+                      {entry.breakStartedAt ? 'On break' : `${entry.breakMinutes}m`}
+                    </TableCell>
+                    <TableCell>
                         <div className="flex justify-end gap-1">
                           <Button
                             size="sm"
@@ -583,30 +943,38 @@ export function TimePage() {
                             Reject
                           </Button>
                         </div>
-                      </TableCell>
-                    )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
-      </div>
+      </Card>
     </>
   )
 }
 
 export function SchedulePage() {
-  const { jobs, clients, employees } = useStore()
+  const { jobs, clients, employees, currentUser, isAdmin } = useStore()
   const days = getWeekDays()
+  const visibleJobs = isAdmin
+    ? jobs
+    : jobs.filter((job) => job.assignedTo.includes(currentUser.id))
 
   return (
     <>
-      <PageHeader title="Schedule" description="This week's electrical jobs and assigned crews." />
+      <PageHeader
+        title={isAdmin ? 'Crew schedule' : 'My schedule'}
+        description={
+          isAdmin
+            ? "This week's electrical jobs and assigned crews."
+            : "Your assigned electrical work for the week."
+        }
+      />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {days.map((day) => {
           const dateKey = toDateKey(day)
-          const dayJobs = jobs.filter((job) => job.scheduledDate === dateKey)
+          const dayJobs = visibleJobs.filter((job) => job.scheduledDate === dateKey)
           return (
             <Card key={dateKey} className={dayJobs.length ? '' : 'opacity-70'}>
               <CardHeader>

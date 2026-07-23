@@ -60,6 +60,7 @@ export interface TimeEntry {
   clockIn: string
   clockOut: string | null
   breakMinutes: number
+  breakStartedAt?: string | null
   notes: string
   manual: boolean
   status: 'active' | 'submitted' | 'approved' | 'rejected'

@@ -92,6 +92,7 @@ create table if not exists public.time_entries (
   clock_in timestamptz not null,
   clock_out timestamptz,
   break_minutes integer not null default 0 check (break_minutes between 0 and 1440),
+  break_started_at timestamptz,
   notes text,
   manual boolean not null default false,
   status public.time_status not null default 'submitted',
@@ -103,6 +104,10 @@ create table if not exists public.time_entries (
   constraint active_timer_shape check (
     (status = 'active' and clock_out is null)
     or (status <> 'active' and clock_out is not null)
+  ),
+  constraint break_requires_active_timer check (
+    break_started_at is null
+    or (status = 'active' and clock_out is null)
   )
 );
 
@@ -323,6 +328,14 @@ with check (
   organization_id = public.current_organization_id()
   and employee_id = auth.uid()
   and status in ('active', 'submitted')
+  and (
+    public.current_user_role() in ('admin', 'manager')
+    or exists (
+      select 1 from public.job_assignments
+      where job_assignments.job_id = time_entries.job_id
+        and job_assignments.employee_id = auth.uid()
+    )
+  )
 );
 drop policy if exists "Employees update own open time" on public.time_entries;
 create policy "Employees update own open time" on public.time_entries for update
@@ -376,3 +389,147 @@ $$;
 
 revoke all on function public.review_time_entry(uuid, public.time_status) from public;
 grant execute on function public.review_time_entry(uuid, public.time_status) to authenticated;
+
+create or replace function public.start_time_break(entry_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  update public.time_entries
+  set break_started_at = now()
+  where id = entry_id
+    and organization_id = public.current_organization_id()
+    and employee_id = auth.uid()
+    and status = 'active'
+    and clock_out is null
+    and break_started_at is null;
+  if not found then
+    raise exception 'Active timer is unavailable for a break';
+  end if;
+end;
+$$;
+
+create or replace function public.end_time_break(entry_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  update public.time_entries
+  set
+    break_minutes = break_minutes + greatest(
+      1,
+      ceil(extract(epoch from (now() - break_started_at)) / 60)::integer
+    ),
+    break_started_at = null
+  where id = entry_id
+    and organization_id = public.current_organization_id()
+    and employee_id = auth.uid()
+    and status = 'active'
+    and clock_out is null
+    and break_started_at is not null;
+  if not found then
+    raise exception 'No active break was found';
+  end if;
+end;
+$$;
+
+create or replace function public.stop_active_timer(entry_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  update public.time_entries
+  set
+    break_minutes = break_minutes + case
+      when break_started_at is null then 0
+      else greatest(
+        1,
+        ceil(extract(epoch from (now() - break_started_at)) / 60)::integer
+      )
+    end,
+    break_started_at = null,
+    clock_out = now(),
+    status = 'submitted'
+  where id = entry_id
+    and organization_id = public.current_organization_id()
+    and employee_id = auth.uid()
+    and status = 'active'
+    and clock_out is null;
+  if not found then
+    raise exception 'Active timer was not found';
+  end if;
+end;
+$$;
+
+create or replace function public.switch_active_job(
+  entry_id uuid,
+  new_entry_id uuid,
+  new_job_id uuid
+)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (
+    select 1
+    from public.jobs
+    where jobs.id = new_job_id
+      and jobs.organization_id = public.current_organization_id()
+      and (
+        public.current_user_role() in ('admin', 'manager')
+        or exists (
+          select 1 from public.job_assignments
+          where job_assignments.job_id = jobs.id
+            and job_assignments.employee_id = auth.uid()
+        )
+      )
+  ) then
+    raise exception 'The selected job is not assigned to this employee';
+  end if;
+
+  update public.time_entries
+  set
+    break_minutes = break_minutes + case
+      when break_started_at is null then 0
+      else greatest(
+        1,
+        ceil(extract(epoch from (now() - break_started_at)) / 60)::integer
+      )
+    end,
+    break_started_at = null,
+    clock_out = now(),
+    status = 'submitted'
+  where id = entry_id
+    and organization_id = public.current_organization_id()
+    and employee_id = auth.uid()
+    and status = 'active'
+    and clock_out is null;
+
+  if not found then
+    raise exception 'Active timer was not found';
+  end if;
+
+  insert into public.time_entries (
+    id,
+    organization_id,
+    employee_id,
+    job_id,
+    work_date,
+    clock_in,
+    break_minutes,
+    manual,
+    status
+  ) values (
+    new_entry_id,
+    public.current_organization_id(),
+    auth.uid(),
+    new_job_id,
+    (now() at time zone 'America/Winnipeg')::date,
+    now(),
+    0,
+    false,
+    'active'
+  );
+end;
+$$;
+
+revoke all on function public.start_time_break(uuid) from public;
+revoke all on function public.end_time_break(uuid) from public;
+revoke all on function public.stop_active_timer(uuid) from public;
+revoke all on function public.switch_active_job(uuid, uuid, uuid) from public;
+grant execute on function public.start_time_break(uuid) to authenticated;
+grant execute on function public.end_time_break(uuid) to authenticated;
+grant execute on function public.stop_active_timer(uuid) to authenticated;
+grant execute on function public.switch_active_job(uuid, uuid, uuid) to authenticated;
