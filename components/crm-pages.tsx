@@ -16,6 +16,7 @@ import {
 import { PageHeader } from '@/components/page-header'
 import { CategoryBadge, ClientTypeBadge, StatusBadge } from '@/components/status-badges'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardAction,
@@ -456,7 +457,16 @@ export function JobsPage() {
 }
 
 export function TimePage() {
-  const { jobs, employees, timeEntries, currentUser, isAdmin, clockIn, clockOut } = useStore()
+  const {
+    jobs,
+    employees,
+    timeEntries,
+    currentUser,
+    isAdmin,
+    clockIn,
+    clockOut,
+    reviewTimeEntry,
+  } = useStore()
   const now = useNow(1000)
   const [jobId, setJobId] = useState(
     jobs.find((job) => !['completed', 'invoiced'].includes(job.status))?.id ?? '',
@@ -534,16 +544,47 @@ export function TimePage() {
                   <TableHead>Job</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Hours</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="text-right">Review</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleEntries.length === 0 && <EmptyRow colSpan={isAdmin ? 4 : 3} message="No time entries yet." />}
+                {visibleEntries.length === 0 && <EmptyRow colSpan={isAdmin ? 6 : 4} message="No time entries yet." />}
                 {visibleEntries.map((entry) => (
                   <TableRow key={entry.id}>
                     {isAdmin && <TableCell>{employees.find((employee) => employee.id === entry.employeeId)?.name}</TableCell>}
                     <TableCell>{jobs.find((job) => job.id === entry.jobId)?.title}</TableCell>
                     <TableCell>{formatDate(entry.date)}</TableCell>
                     <TableCell className="font-mono">{formatHours(entryHours(entry, now))}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={entry.status === 'approved' ? 'default' : 'outline'}
+                        className="capitalize"
+                      >
+                        {entry.status}
+                      </Badge>
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            size="sm"
+                            disabled={entry.status !== 'submitted' && entry.status !== 'rejected'}
+                            onClick={() => reviewTimeEntry(entry.id, 'approved')}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={entry.status !== 'submitted'}
+                            onClick={() => reviewTimeEntry(entry.id, 'rejected')}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

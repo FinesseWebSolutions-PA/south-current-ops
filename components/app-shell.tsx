@@ -12,6 +12,7 @@ import {
   Zap,
   ChevronsUpDown,
   Check,
+  LogOut,
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -43,7 +44,7 @@ const NAV: NavItem[] = [
 ]
 
 function RoleSwitcher() {
-  const { employees, currentUser, setCurrentUserId } = useStore()
+  const { employees, currentUser, setCurrentUserId, cloudMode, signOut } = useStore()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -67,9 +68,16 @@ function RoleSwitcher() {
         }
       />
       <DropdownMenuContent align="start" className="w-60">
-        <DropdownMenuLabel>Switch user (demo)</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {cloudMode ? 'Signed-in account' : 'Switch user (demo)'}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {employees.map((e) => (
+        {cloudMode ? (
+          <DropdownMenuItem onClick={signOut} className="gap-2">
+            <LogOut className="size-4" />
+            Sign out
+          </DropdownMenuItem>
+        ) : employees.map((e) => (
           <DropdownMenuItem
             key={e.id}
             onClick={() => setCurrentUserId(e.id)}
@@ -183,4 +191,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
-

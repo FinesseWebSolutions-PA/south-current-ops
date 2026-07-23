@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'employee'
+export type Role = 'admin' | 'manager' | 'employee'
 
 export type ServiceCategory = 'electrical' | 'solar' | 'boring'
 
@@ -62,6 +62,18 @@ export interface TimeEntry {
   breakMinutes: number
   notes: string
   manual: boolean
+  status: 'active' | 'submitted' | 'approved' | 'rejected'
+  approvedBy?: string | null
+  approvedAt?: string | null
+}
+
+export interface AppData {
+  organizationId: string
+  currentUserId: string
+  employees: Employee[]
+  clients: Client[]
+  jobs: Job[]
+  timeEntries: TimeEntry[]
 }
 
 export const CATEGORY_LABEL: Record<ServiceCategory, string> = {
@@ -83,4 +95,3 @@ export const CLIENT_TYPE_LABEL: Record<ClientType, string> = {
   commercial: 'Commercial',
   agricultural: 'Agricultural',
 }
-

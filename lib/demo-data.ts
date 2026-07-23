@@ -246,12 +246,12 @@ function iso(date: string, h: number, m = 0) {
 
 export const timeEntries: TimeEntry[] = [
   // Fictional sample entries for UI and reporting previews.
-  { id: 'te-1', employeeId: 'emp-2', jobId: 'job-1', date: '2026-07-20', clockIn: iso('2026-07-20', 7, 30), clockOut: iso('2026-07-20', 16, 30), breakMinutes: 30, notes: 'Ran feeders to dryer.', manual: false },
-  { id: 'te-2', employeeId: 'emp-4', jobId: 'job-1', date: '2026-07-20', clockIn: iso('2026-07-20', 7, 30), clockOut: iso('2026-07-20', 16, 0), breakMinutes: 30, notes: 'Trenching + conduit.', manual: false },
-  { id: 'te-3', employeeId: 'emp-2', jobId: 'job-1', date: '2026-07-21', clockIn: iso('2026-07-21', 7, 45), clockOut: iso('2026-07-21', 17, 0), breakMinutes: 45, notes: '', manual: false },
-  { id: 'te-4', employeeId: 'emp-4', jobId: 'job-1', date: '2026-07-22', clockIn: iso('2026-07-22', 8, 0), clockOut: iso('2026-07-22', 16, 30), breakMinutes: 30, notes: 'Sub-panel set.', manual: true },
-  { id: 'te-5', employeeId: 'emp-5', jobId: 'job-3', date: '2026-07-21', clockIn: iso('2026-07-21', 8, 0), clockOut: iso('2026-07-21', 16, 45), breakMinutes: 30, notes: 'Racking + 12 panels.', manual: false },
-  { id: 'te-6', employeeId: 'emp-3', jobId: 'job-3', date: '2026-07-21', clockIn: iso('2026-07-21', 8, 0), clockOut: iso('2026-07-21', 16, 45), breakMinutes: 30, notes: '', manual: false },
-  { id: 'te-7', employeeId: 'emp-5', jobId: 'job-3', date: '2026-07-22', clockIn: iso('2026-07-22', 7, 45), clockOut: iso('2026-07-22', 15, 30), breakMinutes: 30, notes: 'Inverter mount + wiring.', manual: false },
-  { id: 'te-8', employeeId: 'emp-3', jobId: 'job-5', date: '2026-07-17', clockIn: iso('2026-07-17', 8, 30), clockOut: iso('2026-07-17', 17, 0), breakMinutes: 45, notes: 'Finish + inspection.', manual: false },
+  { id: 'te-1', employeeId: 'emp-2', jobId: 'job-1', date: '2026-07-20', clockIn: iso('2026-07-20', 7, 30), clockOut: iso('2026-07-20', 16, 30), breakMinutes: 30, notes: 'Ran feeders to dryer.', manual: false, status: 'approved' },
+  { id: 'te-2', employeeId: 'emp-4', jobId: 'job-1', date: '2026-07-20', clockIn: iso('2026-07-20', 7, 30), clockOut: iso('2026-07-20', 16, 0), breakMinutes: 30, notes: 'Trenching + conduit.', manual: false, status: 'approved' },
+  { id: 'te-3', employeeId: 'emp-2', jobId: 'job-1', date: '2026-07-21', clockIn: iso('2026-07-21', 7, 45), clockOut: iso('2026-07-21', 17, 0), breakMinutes: 45, notes: '', manual: false, status: 'submitted' },
+  { id: 'te-4', employeeId: 'emp-4', jobId: 'job-1', date: '2026-07-22', clockIn: iso('2026-07-22', 8, 0), clockOut: iso('2026-07-22', 16, 30), breakMinutes: 30, notes: 'Sub-panel set.', manual: true, status: 'submitted' },
+  { id: 'te-5', employeeId: 'emp-5', jobId: 'job-3', date: '2026-07-21', clockIn: iso('2026-07-21', 8, 0), clockOut: iso('2026-07-21', 16, 45), breakMinutes: 30, notes: 'Racking + 12 panels.', manual: false, status: 'approved' },
+  { id: 'te-6', employeeId: 'emp-3', jobId: 'job-3', date: '2026-07-21', clockIn: iso('2026-07-21', 8, 0), clockOut: iso('2026-07-21', 16, 45), breakMinutes: 30, notes: '', manual: false, status: 'submitted' },
+  { id: 'te-7', employeeId: 'emp-5', jobId: 'job-3', date: '2026-07-22', clockIn: iso('2026-07-22', 7, 45), clockOut: iso('2026-07-22', 15, 30), breakMinutes: 30, notes: 'Inverter mount + wiring.', manual: false, status: 'submitted' },
+  { id: 'te-8', employeeId: 'emp-3', jobId: 'job-5', date: '2026-07-17', clockIn: iso('2026-07-17', 8, 30), clockOut: iso('2026-07-17', 17, 0), breakMinutes: 45, notes: 'Finish + inspection.', manual: false, status: 'approved' },
 ]
