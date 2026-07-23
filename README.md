@@ -1,78 +1,31 @@
 # South Current Ops
 
-A mobile-friendly CRM, job manager, and employee time tracker for South Current Electric Inc. Built with Next.js, Supabase, and Vercel.
+South Current's electrical CRM, job management, scheduling, reporting, and employee time tracker. Location and GPS tracking are intentionally excluded.
 
-## Included
+## Built with v0
 
-- Customer and lead CRM
-- Electrical job pipeline and scheduling
-- Service categories for residential, commercial, solar, generators, LED lighting, data/voice, and directional boring
-- Live clock-in/out and manual time entry
-- Manager timesheet approval
-- Job budget versus actual labour
-- Payroll-ready CSV export
-- Admin, manager, and employee roles
-- Responsive field interface
-- No GPS or location collection
+The visual foundation was created in [v0](https://v0.app) and imported into the South Current operations repository for deployment on Vercel.
 
-## Preview locally
+## Getting Started
 
-The app starts in demo mode when Supabase variables are absent.
+First, run the development server:
 
 ```bash
-npm install
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
 ```
 
-Open `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Production setup
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-### 1. Create Supabase
+## Learn More
 
-1. Create a new Supabase project in the Canada Central region when available.
-2. Open the SQL Editor and run `supabase/schema.sql`.
-3. Run `supabase/bootstrap.sql` and save the returned organization UUID.
-4. In Authentication → Users, create the first admin user.
-5. Set the user's metadata before creation:
+To learn more, take a look at the following resources:
 
-```json
-{
-  "full_name": "Administrator Name",
-  "organization_id": "YOUR-ORGANIZATION-UUID",
-  "role": "admin"
-}
-```
-
-The database trigger creates the matching employee profile. Repeat with the `manager` or `employee` role for additional team members.
-
-### 2. Configure Vercel
-
-Import this GitHub repository into Vercel. Add these environment variables to Production, Preview, and Development:
-
-```text
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR-PUBLISHABLE-ANON-KEY
-```
-
-Deploy. The app switches from demo mode to secure account login automatically.
-
-### 3. Supabase authentication URLs
-
-In Supabase Authentication → URL Configuration:
-
-- Set Site URL to the production Vercel domain.
-- Add `http://localhost:3000` as a local redirect URL.
-- Add the Vercel preview pattern if preview authentication is required.
-
-## Quality checks
-
-```bash
-npm run typecheck
-npm run lint
-npm run build
-```
-
-## Privacy and security
-
-The public repository contains application source only. Secrets belong in Vercel environment variables and must never be committed. All production tables use Supabase Row Level Security. Time entries capture timestamps, job, breaks, notes, employee, and approval state—never GPS coordinates.
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.

@@ -1,76 +1,86 @@
-export type Role = "admin" | "manager" | "employee";
-export type ClientStatus = "lead" | "active" | "inactive";
-export type JobStatus =
-  | "lead"
-  | "quoted"
-  | "scheduled"
-  | "in_progress"
-  | "complete"
-  | "cancelled";
-export type TimeStatus = "active" | "submitted" | "approved" | "rejected";
+export type Role = 'admin' | 'employee'
 
-export interface Profile {
-  id: string;
-  organization_id: string;
-  full_name: string;
-  email: string;
-  phone?: string | null;
-  role: Role;
-  hourly_rate?: number | null;
-  active: boolean;
+export type ServiceCategory = 'electrical' | 'solar' | 'boring'
+
+export type JobStatus =
+  | 'lead'
+  | 'scheduled'
+  | 'in-progress'
+  | 'completed'
+  | 'invoiced'
+
+export type ClientType = 'residential' | 'commercial' | 'agricultural'
+
+export interface Employee {
+  id: string
+  name: string
+  role: Role
+  title: string
+  email: string
+  phone: string
+  hourlyRate: number
+  initials: string
 }
 
 export interface Client {
-  id: string;
-  organization_id: string;
-  company_name: string;
-  contact_name: string;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  city?: string | null;
-  status: ClientStatus;
-  source?: string | null;
-  notes?: string | null;
-  created_at: string;
+  id: string
+  name: string
+  contact: string
+  type: ClientType
+  email: string
+  phone: string
+  address: string
+  city: string
+  notes: string
+  createdAt: string
 }
 
 export interface Job {
-  id: string;
-  organization_id: string;
-  client_id: string;
-  job_number: string;
-  title: string;
-  service_type: string;
-  status: JobStatus;
-  priority: "low" | "normal" | "high" | "urgent";
-  address?: string | null;
-  city?: string | null;
-  scheduled_start?: string | null;
-  scheduled_end?: string | null;
-  budget_hours?: number | null;
-  notes?: string | null;
-  created_at: string;
+  id: string
+  code: string
+  title: string
+  clientId: string
+  status: JobStatus
+  category: ServiceCategory
+  address: string
+  city: string
+  assignedTo: string[]
+  scheduledDate: string
+  estimatedHours: number
+  description: string
+  createdAt: string
 }
 
 export interface TimeEntry {
-  id: string;
-  organization_id: string;
-  employee_id: string;
-  job_id: string;
-  start_time: string;
-  end_time?: string | null;
-  break_minutes: number;
-  notes?: string | null;
-  status: TimeStatus;
-  approved_by?: string | null;
-  approved_at?: string | null;
+  id: string
+  employeeId: string
+  jobId: string
+  date: string
+  /** ISO timestamps */
+  clockIn: string
+  clockOut: string | null
+  breakMinutes: number
+  notes: string
+  manual: boolean
 }
 
-export interface AppData {
-  profile: Profile;
-  profiles: Profile[];
-  clients: Client[];
-  jobs: Job[];
-  timeEntries: TimeEntry[];
+export const CATEGORY_LABEL: Record<ServiceCategory, string> = {
+  electrical: 'Electrical',
+  solar: 'Solar',
+  boring: 'Directional Boring',
 }
+
+export const STATUS_LABEL: Record<JobStatus, string> = {
+  lead: 'Lead',
+  scheduled: 'Scheduled',
+  'in-progress': 'In Progress',
+  completed: 'Completed',
+  invoiced: 'Invoiced',
+}
+
+export const CLIENT_TYPE_LABEL: Record<ClientType, string> = {
+  residential: 'Residential',
+  commercial: 'Commercial',
+  agricultural: 'Agricultural',
+}
+
