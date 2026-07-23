@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -21,6 +22,8 @@ import type { AppData, Client, Employee, Job, TimeEntry } from './types'
 function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
 }
+
+const PREVIEW_STORAGE_PREFIX = 'south-current-preview-user'
 
 function settledBreakMinutes(entry: TimeEntry, at: string) {
   if (!entry.breakStartedAt) return entry.breakMinutes
@@ -88,8 +91,9 @@ export function StoreProvider({
   const [currentUserId, setCurrentUserIdState] = useState<string>(
     initialData?.currentUserId ?? 'emp-1',
   )
-  const authenticatedUserId = initialData?.currentUserId ?? currentUserId
+  const authenticatedUserId = initialData?.currentUserId ?? 'emp-1'
   const organizationId = initialData?.organizationId ?? 'demo-organization'
+  const previewStorageKey = `${PREVIEW_STORAGE_PREFIX}:${authenticatedUserId}`
 
   const currentUser = useMemo(
     () => employees.find((e) => e.id === currentUserId) ?? employees[0],
@@ -104,6 +108,22 @@ export function StoreProvider({
   const canPreviewRoles =
     authenticatedUser.role === 'admin' || authenticatedUser.role === 'manager'
   const isPreviewMode = cloudMode && currentUserId !== authenticatedUserId
+
+  useEffect(() => {
+    if (!cloudMode || !canPreviewRoles) return
+
+    const savedPreviewId = window.sessionStorage.getItem(previewStorageKey)
+    const savedEmployee = employees.find(
+      (employee) =>
+        employee.id === savedPreviewId && employee.role === 'employee',
+    )
+
+    if (savedEmployee) {
+      setCurrentUserIdState(savedEmployee.id)
+    } else if (savedPreviewId) {
+      window.sessionStorage.removeItem(previewStorageKey)
+    }
+  }, [canPreviewRoles, cloudMode, employees, previewStorageKey])
 
   const handleCloudError = useCallback((message: string) => {
     toast.error(message)
@@ -122,23 +142,50 @@ export function StoreProvider({
 
   const setCurrentUserId = useCallback(
     (id: string) => {
-      if (!cloudMode || canPreviewRoles) setCurrentUserIdState(id)
+      if (!cloudMode) {
+        setCurrentUserIdState(id)
+        return
+      }
+      if (!canPreviewRoles) return
+
+      const selectedUser = employees.find((employee) => employee.id === id)
+      if (
+        !selectedUser ||
+        (id !== authenticatedUserId && selectedUser.role !== 'employee')
+      ) {
+        return
+      }
+
+      if (id === authenticatedUserId) {
+        window.sessionStorage.removeItem(previewStorageKey)
+      } else {
+        window.sessionStorage.setItem(previewStorageKey, id)
+      }
+      setCurrentUserIdState(id)
     },
-    [canPreviewRoles, cloudMode],
+    [
+      authenticatedUserId,
+      canPreviewRoles,
+      cloudMode,
+      employees,
+      previewStorageKey,
+    ],
   )
 
   const exitPreview = useCallback(() => {
+    if (cloudMode) window.sessionStorage.removeItem(previewStorageKey)
     setCurrentUserIdState(authenticatedUserId)
-  }, [authenticatedUserId])
+  }, [authenticatedUserId, cloudMode, previewStorageKey])
 
   const signOut = useCallback(() => {
     if (!cloudMode) return
+    window.sessionStorage.removeItem(previewStorageKey)
     void createSupabaseClient()
       .auth.signOut()
       .then(() => {
         window.location.href = '/login'
       })
-  }, [cloudMode])
+  }, [cloudMode, previewStorageKey])
 
   const addClient = useCallback((data: Omit<Client, 'id' | 'createdAt'>) => {
     const client = {

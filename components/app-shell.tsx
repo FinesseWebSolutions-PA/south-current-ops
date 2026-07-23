@@ -70,11 +70,19 @@ function RoleSwitcher() {
   const previewEmployees = employees.filter((employee) => employee.role === 'employee')
   const switchView = (employeeId: string) => {
     setCurrentUserId(employeeId)
-    router.push('/')
+    if (cloudMode) {
+      window.location.assign(`${window.location.origin}/`)
+    } else {
+      router.push('/')
+    }
   }
   const returnToAdmin = () => {
     exitPreview()
-    router.push('/')
+    if (cloudMode) {
+      window.location.assign(`${window.location.origin}/`)
+    } else {
+      router.push('/')
+    }
   }
 
   return (
@@ -342,7 +350,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="bg-background"
                 onClick={() => {
                   exitPreview()
-                  router.push('/')
+                  window.location.assign(`${window.location.origin}/`)
                 }}
               >
                 <ShieldCheck />
