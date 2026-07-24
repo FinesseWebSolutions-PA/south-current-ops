@@ -18,13 +18,17 @@ export const metadata: Metadata = {
     'Client management, job tracking, employee time tracking, scheduling, and payroll reports for South Current Electric Inc.',
   generator: 'v0.app',
   applicationName: 'South Current Ops',
+  icons: {
+    icon: '/brand/south-current-mark.png',
+    apple: '/brand/south-current-mark.png',
+  },
 }
 
 export const viewport: Viewport = {
   colorScheme: 'light dark',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fafaf5' },
-    { media: '(prefers-color-scheme: dark)', color: '#2b2823' },
+    { media: '(prefers-color-scheme: light)', color: '#0b0b0b' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b0b0b' },
   ],
 }
 

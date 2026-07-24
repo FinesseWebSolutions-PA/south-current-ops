@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import { Zap } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -57,14 +57,21 @@ export function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-sidebar p-4">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,oklch(0.65_0.135_82/0.12),transparent_42%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent" />
+      <Card className="relative w-full max-w-md border-sidebar-border bg-card shadow-2xl">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-11 items-center justify-center rounded-xl bg-primary">
-            <Zap className="size-5 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-xl">South Current Ops</CardTitle>
-          <CardDescription>Sign in to manage jobs and record employee time.</CardDescription>
+          <Image
+            src="/brand/south-current-mark.png"
+            alt="South Current Electric Inc."
+            width={104}
+            height={104}
+            className="mx-auto mb-1 size-24 object-contain"
+            priority
+          />
+          <CardTitle className="text-xl font-bold">South Current Electric</CardTitle>
+          <CardDescription>Operations · Jobs · Employee Time</CardDescription>
         </CardHeader>
         <CardContent>
           {!configured ? (

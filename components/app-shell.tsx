@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -12,7 +13,6 @@ import {
   FileBarChart,
   HardHat,
   ClipboardCheck,
-  Zap,
   ChevronsUpDown,
   Check,
   Eye,
@@ -241,15 +241,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-sidebar md:flex">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary">
-            <Zap className="size-5 text-primary-foreground" />
-          </div>
+        <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-4">
+          <Image
+            src="/brand/south-current-mark.png"
+            alt="South Current Electric"
+            width={48}
+            height={48}
+            className="size-12 shrink-0 object-contain"
+            priority
+          />
           <div className="leading-tight">
-            <p className="text-sm font-semibold text-sidebar-foreground">
+            <p className="text-sm font-bold text-primary">
               South Current
             </p>
-            <p className="text-xs text-sidebar-foreground/60">Operations</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-sidebar-foreground/60">
+              Electric Ops
+            </p>
           </div>
         </div>
 
@@ -285,13 +292,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile top bar */}
       <div className="fixed inset-x-0 top-0 z-20 flex items-center justify-between border-b border-border bg-sidebar px-4 py-3 md:hidden">
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
-            <Zap className="size-4 text-primary-foreground" />
+        <div className="flex items-center gap-2.5">
+          <Image
+            src="/brand/south-current-mark.png"
+            alt="South Current Electric"
+            width={40}
+            height={40}
+            className="size-10 object-contain"
+            priority
+          />
+          <div className="leading-tight">
+            <span className="block text-sm font-bold text-primary">
+              South Current
+            </span>
+            <span className="block text-[9px] uppercase tracking-[0.16em] text-sidebar-foreground/55">
+              Electric Ops
+            </span>
           </div>
-          <span className="text-sm font-semibold text-sidebar-foreground">
-            South Current
-          </span>
         </div>
         <RoleSwitcher />
       </div>

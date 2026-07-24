@@ -10,7 +10,8 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">
+        <div className="mb-2 h-1 w-10 rounded-full bg-primary" />
+        <h1 className="text-2xl font-bold tracking-tight text-balance">
           {title}
         </h1>
         {description && (
@@ -23,4 +24,3 @@ export function PageHeader({
     </div>
   )
 }
-

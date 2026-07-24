@@ -55,7 +55,7 @@ function HourRing({
             strokeDashoffset={offset}
             className={cn(
               'transition-[stroke-dashoffset] duration-500',
-              tone === 'overtime' ? 'text-chart-4' : 'text-primary',
+              tone === 'overtime' ? 'text-accent' : 'text-primary',
             )}
           />
         </svg>

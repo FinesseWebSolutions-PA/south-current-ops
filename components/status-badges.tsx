@@ -11,9 +11,9 @@ import {
 
 const STATUS_CLASS: Record<JobStatus, string> = {
   lead: 'bg-muted text-muted-foreground',
-  scheduled: 'bg-chart-4/15 text-chart-4',
-  'in-progress': 'bg-primary/20 text-primary-foreground dark:text-primary',
-  completed: 'bg-accent/15 text-accent',
+  scheduled: 'bg-primary/18 text-foreground',
+  'in-progress': 'bg-accent text-accent-foreground',
+  completed: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-400',
   invoiced: 'bg-secondary text-secondary-foreground',
 }
 
@@ -40,4 +40,3 @@ export function ClientTypeBadge({ type }: { type: ClientType }) {
     </Badge>
   )
 }
-
