@@ -10,6 +10,7 @@ import {
   Clock,
   CalendarDays,
   FileBarChart,
+  HardHat,
   ClipboardCheck,
   Zap,
   ChevronsUpDown,
@@ -41,6 +42,7 @@ type NavItem = {
 const ADMIN_NAV: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/clients', label: 'Clients', icon: Users },
+  { href: '/employees', label: 'Employees', icon: HardHat },
   { href: '/jobs', label: 'Jobs', icon: Briefcase },
   { href: '/time', label: 'Time Approvals', icon: ClipboardCheck },
   { href: '/schedule', label: 'Schedule', icon: CalendarDays },
@@ -48,7 +50,7 @@ const ADMIN_NAV: NavItem[] = [
 ]
 
 const EMPLOYEE_NAV: NavItem[] = [
-  { href: '/', label: 'My Day', icon: Clock },
+  { href: '/', label: 'Work', icon: Clock },
   { href: '/jobs', label: 'My Jobs', icon: Briefcase },
   { href: '/schedule', label: 'Schedule', icon: CalendarDays },
   { href: '/time', label: 'My Time', icon: FileBarChart },

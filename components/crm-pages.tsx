@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, type FormEvent } from 'react'
 import {
+  ArrowLeftRight,
   ArrowRight,
   Briefcase,
   Coffee,
@@ -10,17 +11,23 @@ import {
   CheckCircle2,
   Clock3,
   DollarSign,
+  HardHat,
+  Mail,
+  MapPin,
   MapPinOff,
   Pause,
+  Phone,
   Play,
   Plus,
-  Repeat2,
+  Search,
   Square,
   Users,
   Zap,
 } from 'lucide-react'
+import { WeeklyHoursRings } from '@/components/hour-rings'
 import { PageHeader } from '@/components/page-header'
 import { CategoryBadge, ClientTypeBadge, StatusBadge } from '@/components/status-badges'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -31,6 +38,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -259,6 +273,7 @@ function EmployeeHomePage() {
     switchJob,
     isPreviewMode,
   } = useStore()
+  const [jobPickerOpen, setJobPickerOpen] = useState(false)
   const now = useNow(1000)
   const activeEntry = timeEntries.find(
     (entry) => entry.employeeId === currentUser.id && !entry.clockOut,
@@ -267,9 +282,6 @@ function EmployeeHomePage() {
     (job) =>
       job.assignedTo.includes(currentUser.id) &&
       !['completed', 'invoiced'].includes(job.status),
-  )
-  const [selectedJobId, setSelectedJobId] = useState(
-    activeEntry?.jobId ?? assignedJobs[0]?.id ?? '',
   )
   const todayKey = toDateKey(new Date())
   const todayEntries = timeEntries.filter(
@@ -280,20 +292,34 @@ function EmployeeHomePage() {
     0,
   )
   const activeJob = jobs.find((job) => job.id === activeEntry?.jobId)
+  const { start: weekStart, end: weekEnd } = getWeekRange()
+  const weekHours = timeEntries
+    .filter((entry) => {
+      if (entry.employeeId !== currentUser.id) return false
+      const date = new Date(`${entry.date}T00:00:00`)
+      return date >= weekStart && date < weekEnd
+    })
+    .reduce((total, entry) => total + entryHours(entry, now), 0)
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-5">
-        <p className="text-sm text-muted-foreground">
-          {new Date().toLocaleDateString('en-CA', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-          })}
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Hi {currentUser.name.split(' ')[0]}, here’s your day.
-        </h1>
+      <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {new Date().toLocaleDateString('en-CA', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            Hi {currentUser.name.split(' ')[0]}, here’s your workday.
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Clock, current electrical job, breaks, and assigned work in one place.
+          </p>
+        </div>
+        <WeeklyHoursRings hours={weekHours} compact className="sm:-mt-2" />
       </div>
 
       <Card className="overflow-visible ring-2 ring-primary/25">
@@ -319,7 +345,7 @@ function EmployeeHomePage() {
                     <p className="mt-1 text-sm opacity-70">
                       {activeEntry.breakStartedAt
                         ? `${activeJob?.code} · ${activeJob?.title}`
-                        : `${activeJob?.code} · ${
+                        : `${activeJob?.code} · ${CATEGORY_LABEL[activeJob?.category ?? 'electrical']} · ${
                             clients.find((client) => client.id === activeJob?.clientId)?.name
                           }`}
                     </p>
@@ -338,7 +364,7 @@ function EmployeeHomePage() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {activeEntry.breakStartedAt ? (
                     <Button
                       size="lg"
@@ -361,8 +387,17 @@ function EmployeeHomePage() {
                   )}
                   <Button
                     size="lg"
+                    variant="secondary"
+                    className="h-12"
+                    disabled={Boolean(activeEntry.breakStartedAt) || isPreviewMode}
+                    onClick={() => setJobPickerOpen(true)}
+                  >
+                    <ArrowLeftRight /> Change job
+                  </Button>
+                  <Button
+                    size="lg"
                     variant="outline"
-                    className="h-12 border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    className="col-span-2 h-12 border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:col-span-1"
                     disabled={isPreviewMode}
                     onClick={() => clockOut(activeEntry.id)}
                   >
@@ -372,34 +407,24 @@ function EmployeeHomePage() {
               </div>
 
               <div className="p-5 sm:p-6">
-                <Label htmlFor="quick-switch">Switch to another assigned job</Label>
-                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                  <select
-                    id="quick-switch"
-                    className={`${fieldClass} h-11 flex-1`}
-                    value={selectedJobId}
-                    disabled={isPreviewMode}
-                    onChange={(event) => setSelectedJobId(event.target.value)}
-                  >
-                    {assignedJobs.map((job) => (
-                      <option key={job.id} value={job.id}>
-                        {job.code} — {job.title}
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    className="h-11"
-                    variant="outline"
-                    disabled={
-                      !selectedJobId ||
-                      selectedJobId === activeEntry.jobId ||
-                      Boolean(activeEntry.breakStartedAt) ||
-                      isPreviewMode
-                    }
-                    onClick={() => switchJob(activeEntry.id, selectedJobId)}
-                  >
-                    <Repeat2 /> Switch job
-                  </Button>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-muted/30 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Work location
+                    </p>
+                    <p className="mt-1 text-sm font-medium">
+                      {activeJob?.address || 'Address not entered'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{activeJob?.city}</p>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Scope
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-sm">
+                      {activeJob?.description || 'No scope notes entered.'}
+                    </p>
+                  </div>
                 </div>
                 {activeEntry.breakStartedAt && (
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -416,8 +441,16 @@ function EmployeeHomePage() {
                 </div>
                 <h2 className="mt-4 text-xl font-semibold">What are you working on?</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Choose an assigned job and start your timer. No location tracking.
+                  Choose an assigned electrical job and start your timer.
                 </p>
+                <Button
+                  size="lg"
+                  className="mt-4 h-12"
+                  disabled={!assignedJobs.length || isPreviewMode}
+                  onClick={() => setJobPickerOpen(true)}
+                >
+                  <Search /> Choose a job
+                </Button>
               </div>
               {assignedJobs.length ? (
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -493,7 +526,136 @@ function EmployeeHomePage() {
           </p>
         </div>
       </div>
+
+      <ElectricalJobPicker
+        open={jobPickerOpen}
+        onOpenChange={setJobPickerOpen}
+        activeEntryId={activeEntry?.id ?? null}
+        currentJobId={activeEntry?.jobId ?? null}
+        onBreak={Boolean(activeEntry?.breakStartedAt)}
+      />
     </div>
+  )
+}
+
+function ElectricalJobPicker({
+  open,
+  onOpenChange,
+  activeEntryId,
+  currentJobId,
+  onBreak,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  activeEntryId: string | null
+  currentJobId: string | null
+  onBreak: boolean
+}) {
+  const {
+    jobs,
+    clients,
+    currentUser,
+    clockIn,
+    switchJob,
+    isPreviewMode,
+  } = useStore()
+  const [query, setQuery] = useState('')
+  const assignedJobs = jobs.filter(
+    (job) =>
+      job.assignedTo.includes(currentUser.id) &&
+      !['completed', 'invoiced'].includes(job.status),
+  )
+  const search = query.trim().toLowerCase()
+  const matches = assignedJobs.filter((job) => {
+    if (!search) return true
+    const client = clients.find((item) => item.id === job.clientId)
+    return [
+      job.code,
+      job.title,
+      job.address,
+      job.city,
+      job.description,
+      client?.name,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(search)
+  })
+
+  function selectJob(jobId: string) {
+    if (isPreviewMode || onBreak || jobId === currentJobId) return
+    if (activeEntryId) {
+      switchJob(activeEntryId, jobId)
+    } else {
+      clockIn(currentUser.id, jobId)
+    }
+    setQuery('')
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-xl overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>{activeEntryId ? 'Change electrical job' : 'Choose your job'}</DialogTitle>
+          <DialogDescription>
+            Assigned work appears first. Search by job number, customer, address, or scope.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search assigned jobs"
+            className="h-11 pl-9"
+          />
+        </div>
+        <div className="grid max-h-[55vh] gap-2 overflow-y-auto pr-1">
+          {!matches.length && (
+            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+              No assigned jobs match your search.
+            </div>
+          )}
+          {matches.map((job) => {
+            const client = clients.find((item) => item.id === job.clientId)
+            const current = job.id === currentJobId
+            return (
+              <button
+                key={job.id}
+                type="button"
+                disabled={current || onBreak || isPreviewMode}
+                onClick={() => selectJob(job.id)}
+                className="rounded-xl border p-4 text-left transition hover:border-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-primary">{job.code}</span>
+                      <CategoryBadge category={job.category} />
+                      {current && <Badge variant="outline">Current job</Badge>}
+                    </div>
+                    <p className="mt-2 font-semibold">{job.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{client?.name}</p>
+                  </div>
+                  {!current && <Play className="mt-1 size-5 shrink-0 text-primary" />}
+                </div>
+                <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
+                  <MapPin className="mt-0.5 size-3.5 shrink-0" />
+                  <span>{[job.address, job.city].filter(Boolean).join(', ')}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+        {onBreak && (
+          <p className="text-xs text-muted-foreground">
+            Resume work before changing jobs.
+          </p>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -603,12 +765,215 @@ export function ClientsPage() {
   )
 }
 
+export function EmployeesPage() {
+  const { employees, jobs, timeEntries, isAdmin } = useStore()
+  const [search, setSearch] = useState('')
+  const now = useNow(1000)
+  const { start, end } = getWeekRange()
+  const query = search.trim().toLowerCase()
+  const visibleEmployees = employees.filter((employee) =>
+    [employee.name, employee.title, employee.email, employee.phone]
+      .join(' ')
+      .toLowerCase()
+      .includes(query),
+  )
+
+  if (!isAdmin) return <AccessRestricted />
+
+  return (
+    <>
+      <PageHeader
+        title="Employees"
+        description="Crew profiles, weekly hours, overtime, assignments, and live work status."
+      />
+
+      <div className="relative mb-5 max-w-xl">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search employees"
+          className="h-11 pl-9"
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        {!visibleEmployees.length && (
+          <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground xl:col-span-2">
+            No employees match your search.
+          </div>
+        )}
+        {visibleEmployees.map((employee) => {
+          const weekEntries = timeEntries.filter((entry) => {
+            if (entry.employeeId !== employee.id) return false
+            const date = new Date(`${entry.date}T00:00:00`)
+            return date >= start && date < end
+          })
+          const hours = weekEntries.reduce(
+            (total, entry) => total + entryHours(entry, now),
+            0,
+          )
+          const activeEntry = timeEntries.find(
+            (entry) => entry.employeeId === employee.id && !entry.clockOut,
+          )
+          const activeJob = jobs.find((job) => job.id === activeEntry?.jobId)
+          const assignedJobs = jobs.filter(
+            (job) =>
+              job.assignedTo.includes(employee.id) &&
+              !['completed', 'invoiced'].includes(job.status),
+          )
+          const submitted = weekEntries.filter(
+            (entry) => entry.status === 'submitted',
+          ).length
+
+          return (
+            <Card key={employee.id}>
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-12">
+                        <AvatarFallback className="bg-primary/15 font-semibold text-primary">
+                          {employee.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="truncate text-lg font-semibold">
+                            {employee.name}
+                          </h2>
+                          <Badge variant="outline" className="capitalize">
+                            {employee.role}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{employee.title}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="size-4 shrink-0" />
+                        <span className="truncate">{employee.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="size-4 shrink-0" />
+                        <span>{employee.phone || 'No phone entered'}</span>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`mt-4 rounded-lg border p-3 ${
+                        activeEntry
+                          ? activeEntry.breakStartedAt
+                            ? 'border-chart-4/40 bg-chart-4/10'
+                            : 'border-primary/30 bg-primary/5'
+                          : 'bg-muted/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`size-2.5 rounded-full ${
+                            activeEntry
+                              ? activeEntry.breakStartedAt
+                                ? 'bg-chart-4'
+                                : 'bg-primary'
+                              : 'bg-muted-foreground/40'
+                          }`}
+                        />
+                        <p className="text-xs font-semibold uppercase tracking-wide">
+                          {activeEntry
+                            ? activeEntry.breakStartedAt
+                              ? 'On break'
+                              : 'Working now'
+                            : 'Clocked out'}
+                        </p>
+                      </div>
+                      <p className="mt-2 truncate text-sm font-medium">
+                        {activeJob
+                          ? `${activeJob.code} — ${activeJob.title}`
+                          : 'No active electrical job'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <WeeklyHoursRings hours={hours} compact className="shrink-0" />
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-2 border-t pt-4 text-center">
+                  <div>
+                    <p className="text-lg font-semibold">{assignedJobs.length}</p>
+                    <p className="text-[11px] text-muted-foreground">Assigned jobs</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold">{weekEntries.length}</p>
+                    <p className="text-[11px] text-muted-foreground">Time entries</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold">{submitted}</p>
+                    <p className="text-[11px] text-muted-foreground">Needs review</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      <div className="mt-5 flex items-start gap-3 rounded-xl border bg-card p-4">
+        <HardHat className="mt-0.5 size-5 shrink-0 text-primary" />
+        <div>
+          <p className="font-medium">How the hour circles work</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The regular circle fills from 0 to 40 hours each week. Once an
+            employee passes 40 hours, the overtime circle begins filling in a
+            10-hour band while always showing the exact overtime total.
+          </p>
+        </div>
+      </div>
+    </>
+  )
+}
+
 export function JobsPage() {
-  const { jobs, clients, employees, currentUser, addJob, isAdmin } = useStore()
+  const {
+    jobs,
+    clients,
+    employees,
+    currentUser,
+    timeEntries,
+    addJob,
+    clockIn,
+    switchJob,
+    isAdmin,
+    isPreviewMode,
+  } = useStore()
   const [showForm, setShowForm] = useState(false)
+  const [jobSearch, setJobSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | JobStatus>('all')
   const visibleJobs = isAdmin
     ? jobs
     : jobs.filter((job) => job.assignedTo.includes(currentUser.id))
+  const activeEntry = timeEntries.find(
+    (entry) => entry.employeeId === currentUser.id && !entry.clockOut,
+  )
+  const query = jobSearch.trim().toLowerCase()
+  const filteredJobs = visibleJobs.filter((job) => {
+    if (statusFilter !== 'all' && job.status !== statusFilter) return false
+    if (!query) return true
+    const client = clients.find((item) => item.id === job.clientId)
+    return [
+      job.code,
+      job.title,
+      job.address,
+      job.city,
+      job.description,
+      client?.name,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(query)
+  })
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -645,6 +1010,35 @@ export function JobsPage() {
           </Button>
         )}
       </PageHeader>
+
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={jobSearch}
+            onChange={(event) => setJobSearch(event.target.value)}
+            placeholder={
+              isAdmin
+                ? 'Search job, customer, address, or scope'
+                : 'Search your assigned jobs'
+            }
+            className="h-11 pl-9"
+          />
+        </div>
+        <select
+          className={`${fieldClass} h-11 sm:w-48`}
+          value={statusFilter}
+          onChange={(event) =>
+            setStatusFilter(event.target.value as 'all' | JobStatus)
+          }
+          aria-label="Filter jobs by status"
+        >
+          <option value="all">All active statuses</option>
+          {Object.entries(STATUS_LABEL).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </div>
 
       {showForm && isAdmin && (
         <Card className="mb-5">
@@ -699,48 +1093,105 @@ export function JobsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Job</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Crew</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleJobs.length === 0 && (
-                <EmptyRow
-                  colSpan={5}
-                  message={isAdmin ? 'No jobs yet.' : 'No jobs are assigned to you.'}
-                />
-              )}
-              {visibleJobs.map((job) => (
-                <TableRow key={job.id}>
-                  <TableCell>
-                    <div className="font-medium">{job.title}</div>
-                    <div className="mt-1 flex gap-2">
-                      <span className="text-xs text-muted-foreground">{job.code}</span>
-                      <CategoryBadge category={job.category} />
-                    </div>
-                  </TableCell>
-                  <TableCell>{clients.find((client) => client.id === job.clientId)?.name ?? 'Unknown'}</TableCell>
-                  <TableCell><StatusBadge status={job.status} /></TableCell>
-                  <TableCell>
-                    {job.assignedTo.length
-                      ? job.assignedTo.map((id) => employees.find((employee) => employee.id === id)?.name).filter(Boolean).join(', ')
-                      : <span className="text-muted-foreground">Unassigned</span>}
-                  </TableCell>
-                  <TableCell>{formatDate(job.scheduledDate)}</TableCell>
+      {isAdmin ? (
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Crew</TableHead>
+                  <TableHead>Date</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {filteredJobs.length === 0 && (
+                  <EmptyRow colSpan={5} message="No jobs match these filters." />
+                )}
+                {filteredJobs.map((job) => (
+                  <TableRow key={job.id}>
+                    <TableCell>
+                      <div className="font-medium">{job.title}</div>
+                      <div className="mt-1 flex gap-2">
+                        <span className="text-xs text-muted-foreground">{job.code}</span>
+                        <CategoryBadge category={job.category} />
+                      </div>
+                    </TableCell>
+                    <TableCell>{clients.find((client) => client.id === job.clientId)?.name ?? 'Unknown'}</TableCell>
+                    <TableCell><StatusBadge status={job.status} /></TableCell>
+                    <TableCell>
+                      {job.assignedTo.length
+                        ? job.assignedTo.map((id) => employees.find((employee) => employee.id === id)?.name).filter(Boolean).join(', ')
+                        : <span className="text-muted-foreground">Unassigned</span>}
+                    </TableCell>
+                    <TableCell>{formatDate(job.scheduledDate)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {!filteredJobs.length && (
+            <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground lg:col-span-2">
+              No assigned jobs match these filters.
+            </div>
+          )}
+          {filteredJobs.map((job) => {
+            const client = clients.find((item) => item.id === job.clientId)
+            const current = activeEntry?.jobId === job.id
+            return (
+              <Card key={job.id} className={current ? 'ring-2 ring-primary/40' : ''}>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-primary">{job.code}</span>
+                    <CategoryBadge category={job.category} />
+                    <StatusBadge status={job.status} />
+                    {current && <Badge>Tracking now</Badge>}
+                  </div>
+                  <CardTitle className="mt-2">{job.title}</CardTitle>
+                  <CardDescription>{client?.name}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <MapPin className="mt-0.5 size-4 shrink-0" />
+                    <span>{[job.address, job.city].filter(Boolean).join(', ')}</span>
+                  </div>
+                  <p className="mt-3 line-clamp-2 text-sm">
+                    {job.description || 'No scope notes entered.'}
+                  </p>
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <span className="text-xs text-muted-foreground">
+                      Scheduled {formatDate(job.scheduledDate)}
+                    </span>
+                    <Button
+                      disabled={
+                        current ||
+                        Boolean(activeEntry?.breakStartedAt) ||
+                        isPreviewMode
+                      }
+                      onClick={() => {
+                        if (activeEntry) switchJob(activeEntry.id, job.id)
+                        else clockIn(currentUser.id, job.id)
+                      }}
+                    >
+                      {activeEntry ? <ArrowLeftRight /> : <Play />}
+                      {current
+                        ? 'Current job'
+                        : activeEntry
+                          ? 'Switch to job'
+                          : 'Start job'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </>
   )
 }
