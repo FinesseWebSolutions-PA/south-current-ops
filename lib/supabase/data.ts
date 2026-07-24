@@ -116,15 +116,15 @@ export async function loadCloudData(): Promise<AppData | null> {
 
   const [profileResult, employeesResult, clientsResult, jobsResult, timeResult] =
     await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('profiles').select('*').eq('active', true).order('full_name'),
-      supabase.from('clients').select('*').order('created_at', { ascending: false }),
+      supabase.from('sc_profiles').select('*').eq('id', user.id).single(),
+      supabase.from('sc_profiles').select('*').eq('active', true).order('full_name'),
+      supabase.from('sc_clients').select('*').order('created_at', { ascending: false }),
       supabase
-        .from('jobs')
-        .select('*, job_assignments(employee_id)')
+        .from('sc_jobs')
+        .select('*, job_assignments:sc_job_assignments(employee_id)')
         .order('scheduled_date', { ascending: true }),
       supabase
-        .from('time_entries')
+        .from('sc_time_entries')
         .select('*')
         .order('clock_in', { ascending: false }),
     ])
