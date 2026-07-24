@@ -9,12 +9,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import {
-  clients as seedClients,
-  employees as seedEmployees,
-  jobs as seedJobs,
-  timeEntries as seedTimeEntries,
-} from './demo-data'
 import { toast } from 'sonner'
 import { createClient as createSupabaseClient } from './supabase/client'
 import type { AppData, Client, Employee, Job, TimeEntry } from './types'
@@ -72,27 +66,22 @@ const StoreContext = createContext<StoreValue | null>(null)
 export function StoreProvider({
   children,
   initialData,
-  cloudMode = false,
 }: {
   children: ReactNode
-  initialData?: AppData | null
-  cloudMode?: boolean
+  initialData: AppData
 }) {
-  const [employees] = useState<Employee[]>(
-    initialData?.employees ?? seedEmployees,
-  )
-  const [clients, setClients] = useState<Client[]>(
-    initialData?.clients ?? seedClients,
-  )
-  const [jobs, setJobs] = useState<Job[]>(initialData?.jobs ?? seedJobs)
+  const cloudMode = true
+  const [employees] = useState<Employee[]>(initialData.employees)
+  const [clients, setClients] = useState<Client[]>(initialData.clients)
+  const [jobs, setJobs] = useState<Job[]>(initialData.jobs)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(
-    initialData?.timeEntries ?? seedTimeEntries,
+    initialData.timeEntries,
   )
   const [currentUserId, setCurrentUserIdState] = useState<string>(
-    initialData?.currentUserId ?? 'emp-1',
+    initialData.currentUserId,
   )
-  const authenticatedUserId = initialData?.currentUserId ?? 'emp-1'
-  const organizationId = initialData?.organizationId ?? 'demo-organization'
+  const authenticatedUserId = initialData.currentUserId
+  const organizationId = initialData.organizationId
   const previewStorageKey = `${PREVIEW_STORAGE_PREFIX}:${authenticatedUserId}`
 
   const currentUser = useMemo(

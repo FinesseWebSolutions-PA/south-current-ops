@@ -140,9 +140,7 @@ function RoleSwitcher({ compact = false }: { compact?: boolean }) {
               <ShieldCheck className="size-3.5" />
               Signed in as {authenticatedUser.name}
             </span>
-          ) : (
-            'Switch role view (demo)'
-          )}
+          ) : 'Switch role view'}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {cloudMode ? (

@@ -1,14 +1,17 @@
 'use client'
 
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import {
+  ArrowLeft,
   ArrowLeftRight,
   ArrowRight,
   Briefcase,
   Coffee,
   ClipboardCheck,
   CheckCircle2,
+  ChevronRight,
   Clock3,
   DollarSign,
   HardHat,
@@ -88,13 +91,15 @@ function MetricCard({
   value,
   detail,
   icon: Icon,
+  href,
 }: {
   label: string
   value: string
   detail: string
   icon: typeof Zap
+  href?: string
 }) {
-  return (
+  const card = (
     <Card size="sm">
       <CardHeader>
         <CardDescription>{label}</CardDescription>
@@ -108,6 +113,14 @@ function MetricCard({
       <CardContent className="text-xs text-muted-foreground">{detail}</CardContent>
     </Card>
   )
+  return href ? (
+    <Link
+      href={href}
+      className="rounded-xl outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      {card}
+    </Link>
+  ) : card
 }
 
 function EmptyRow({ colSpan, message }: { colSpan: number; message: string }) {
@@ -159,24 +172,28 @@ function AdminDashboardPage() {
           value={String(jobs.filter((job) => !['completed', 'invoiced'].includes(job.status)).length)}
           detail={`${jobs.filter((job) => job.status === 'in-progress').length} currently in progress`}
           icon={Briefcase}
+          href="/jobs"
         />
         <MetricCard
           label="Customers"
           value={String(clients.length)}
           detail="Residential, commercial, and agricultural"
           icon={Users}
+          href="/clients"
         />
         <MetricCard
           label="Crew active now"
           value={String(activeEntries.length)}
           detail={`${activeEntries.filter((entry) => entry.breakStartedAt).length} currently on break`}
           icon={Zap}
+          href="/time"
         />
         <MetricCard
           label="Time approvals"
           value={String(pendingApprovals.length)}
           detail={`${formatHours(weekHours)} recorded this week`}
           icon={Clock3}
+          href="/time"
         />
       </div>
 
@@ -200,7 +217,9 @@ function AdminDashboardPage() {
                 {recentJobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell>
-                      <div className="font-medium">{job.title}</div>
+                      <Link className="font-medium hover:text-primary hover:underline" href={`/jobs/${job.id}`}>
+                        {job.title}
+                      </Link>
                       <div className="text-xs text-muted-foreground">{job.code}</div>
                     </TableCell>
                     <TableCell><StatusBadge status={job.status} /></TableCell>
@@ -232,9 +251,12 @@ function AdminDashboardPage() {
                   }`}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">
+                  <Link
+                    className="block truncate font-medium hover:text-primary hover:underline"
+                    href={`/employees/${entry.employeeId}`}
+                  >
                     {employees.find((employee) => employee.id === entry.employeeId)?.name}
-                  </p>
+                  </Link>
                   <p className="truncate text-xs text-muted-foreground">
                     {entry.breakStartedAt
                       ? 'On break'
@@ -727,40 +749,43 @@ export function ClientsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Location</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clients.length === 0 && <EmptyRow colSpan={4} message="No clients yet." />}
-              {clients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell>
-                    <div className="font-medium">{client.name}</div>
-                    <div className="text-xs text-muted-foreground">{client.email}</div>
-                  </TableCell>
-                  <TableCell><ClientTypeBadge type={client.type} /></TableCell>
-                  <TableCell>
-                    <div>{client.contact}</div>
-                    <div className="text-xs text-muted-foreground">{client.phone}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div>{client.city}</div>
-                    <div className="text-xs text-muted-foreground">{client.address}</div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {!clients.length && (
+        <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No clients yet. Add the first client to begin building the CRM.
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {clients.map((client) => (
+          <Link
+            key={client.id}
+            href={`/clients/${client.id}`}
+            className="group rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <Card className="h-full transition-transform group-hover:-translate-y-0.5 group-hover:ring-primary/40">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <CardTitle className="truncate">{client.name}</CardTitle>
+                    <CardDescription className="mt-1">{client.contact || 'No contact entered'}</CardDescription>
+                  </div>
+                  <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                </div>
+                <div className="mt-2"><ClientTypeBadge type={client.type} /></div>
+              </CardHeader>
+              <CardContent className="grid gap-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Phone className="size-4 shrink-0" />
+                  <span className="truncate">{client.phone || 'No phone entered'}</span>
+                </div>
+                <div className="flex items-start gap-2 text-muted-foreground">
+                  <MapPin className="mt-0.5 size-4 shrink-0" />
+                  <span>{[client.address, client.city].filter(Boolean).join(', ') || 'No address entered'}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
     </>
   )
 }
@@ -827,7 +852,12 @@ export function EmployeesPage() {
           ).length
 
           return (
-            <Card key={employee.id}>
+            <Link
+              key={employee.id}
+              href={`/employees/${employee.id}`}
+              className="group rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+            <Card className="h-full transition-transform group-hover:-translate-y-0.5 group-hover:ring-primary/40">
               <CardContent className="p-5">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                   <div className="min-w-0 flex-1">
@@ -915,6 +945,7 @@ export function EmployeesPage() {
                 </div>
               </CardContent>
             </Card>
+            </Link>
           )
         })}
       </div>
@@ -1113,13 +1144,19 @@ export function JobsPage() {
                 {filteredJobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell>
-                      <div className="font-medium">{job.title}</div>
+                      <Link className="font-medium hover:text-primary hover:underline" href={`/jobs/${job.id}`}>
+                        {job.title}
+                      </Link>
                       <div className="mt-1 flex gap-2">
                         <span className="text-xs text-muted-foreground">{job.code}</span>
                         <CategoryBadge category={job.category} />
                       </div>
                     </TableCell>
-                    <TableCell>{clients.find((client) => client.id === job.clientId)?.name ?? 'Unknown'}</TableCell>
+                    <TableCell>
+                      <Link className="hover:text-primary hover:underline" href={`/clients/${job.clientId}`}>
+                        {clients.find((client) => client.id === job.clientId)?.name ?? 'Unknown'}
+                      </Link>
+                    </TableCell>
                     <TableCell><StatusBadge status={job.status} /></TableCell>
                     <TableCell>
                       {job.assignedTo.length
@@ -1152,8 +1189,16 @@ export function JobsPage() {
                     <StatusBadge status={job.status} />
                     {current && <Badge>Tracking now</Badge>}
                   </div>
-                  <CardTitle className="mt-2">{job.title}</CardTitle>
-                  <CardDescription>{client?.name}</CardDescription>
+                  <CardTitle className="mt-2">
+                    <Link className="hover:text-primary hover:underline" href={`/jobs/${job.id}`}>
+                      {job.title}
+                    </Link>
+                  </CardTitle>
+                  <CardDescription>
+                    <Link className="hover:text-primary hover:underline" href={`/clients/${job.clientId}`}>
+                      {client?.name}
+                    </Link>
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -1272,7 +1317,9 @@ function EmployeeTimePage() {
               {entries.map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell className="font-medium">
-                    {jobs.find((job) => job.id === entry.jobId)?.title}
+                    <Link className="hover:text-primary hover:underline" href={`/jobs/${entry.jobId}`}>
+                      {jobs.find((job) => job.id === entry.jobId)?.title}
+                    </Link>
                   </TableCell>
                   <TableCell>{formatDate(entry.date)}</TableCell>
                   <TableCell>
@@ -1369,8 +1416,16 @@ function AdminTimePage() {
                   })
                   .map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell>{employees.find((employee) => employee.id === entry.employeeId)?.name}</TableCell>
-                    <TableCell>{jobs.find((job) => job.id === entry.jobId)?.title}</TableCell>
+                    <TableCell>
+                      <Link className="hover:text-primary hover:underline" href={`/employees/${entry.employeeId}`}>
+                        {employees.find((employee) => employee.id === entry.employeeId)?.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Link className="hover:text-primary hover:underline" href={`/jobs/${entry.jobId}`}>
+                        {jobs.find((job) => job.id === entry.jobId)?.title}
+                      </Link>
+                    </TableCell>
                     <TableCell>{formatDate(entry.date)}</TableCell>
                     <TableCell className="font-mono">{formatHours(entryHours(entry, now))}</TableCell>
                     <TableCell>
@@ -1443,7 +1498,11 @@ export function SchedulePage() {
               <CardContent className="grid gap-3">
                 {dayJobs.length === 0 && <p className="text-sm text-muted-foreground">No work scheduled.</p>}
                 {dayJobs.map((job) => (
-                  <div key={job.id} className="rounded-lg border p-3">
+                  <Link
+                    key={job.id}
+                    href={`/jobs/${job.id}`}
+                    className="block rounded-lg border p-3 transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium">{job.title}</p>
                       <StatusBadge status={job.status} />
@@ -1454,7 +1513,7 @@ export function SchedulePage() {
                     <p className="mt-2 text-xs">
                       {job.assignedTo.map((id) => employees.find((employee) => employee.id === id)?.name).filter(Boolean).join(', ') || 'Unassigned'}
                     </p>
-                  </div>
+                  </Link>
                 ))}
               </CardContent>
             </Card>
@@ -1488,7 +1547,7 @@ export function ReportsPage() {
       <PageHeader title="Reports" description="Weekly labour, payroll estimates, and job costing visibility." />
       <div className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Team hours" value={formatHours(employeeTotals.reduce((sum, row) => sum + row.hours, 0))} detail="Current work week" icon={Clock3} />
-        <MetricCard label="Estimated payroll" value={formatCurrency(labour)} detail="Based on demo hourly rates" icon={DollarSign} />
+        <MetricCard label="Estimated payroll" value={formatCurrency(labour)} detail="Based on employee profile rates" icon={DollarSign} href="/employees" />
         <MetricCard label="Completed jobs" value={String(jobs.filter((job) => ['completed', 'invoiced'].includes(job.status)).length)} detail="Ready for billing review" icon={CheckCircle2} />
       </div>
       <Card className="mt-5">
@@ -1509,7 +1568,11 @@ export function ReportsPage() {
             <TableBody>
               {employeeTotals.map(({ employee, hours, payroll }) => (
                 <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link className="hover:text-primary hover:underline" href={`/employees/${employee.id}`}>
+                      {employee.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{employee.title}</TableCell>
                   <TableCell className="font-mono">{formatHours(hours)}</TableCell>
                   <TableCell>{formatCurrency(payroll)}</TableCell>
@@ -1519,6 +1582,227 @@ export function ReportsPage() {
           </Table>
         </CardContent>
       </Card>
+    </>
+  )
+}
+
+function DetailBackLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Button className="mb-5" variant="ghost" render={<Link href={href} />}>
+      <ArrowLeft /> {label}
+    </Button>
+  )
+}
+
+function MissingRecord({ label, href }: { label: string; href: string }) {
+  return (
+    <div className="mx-auto max-w-lg py-16 text-center">
+      <h1 className="text-xl font-semibold">{label} not found</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        This record may have been removed or is not available to your account.
+      </p>
+      <Button className="mt-5" render={<Link href={href} />}>
+        Return to list
+      </Button>
+    </div>
+  )
+}
+
+export function ClientDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { clients, jobs, isAdmin } = useStore()
+  if (!isAdmin) return <AccessRestricted />
+  const client = clients.find((record) => record.id === id)
+  if (!client) return <MissingRecord label="Client" href="/clients" />
+  const relatedJobs = jobs.filter((job) => job.clientId === client.id)
+
+  return (
+    <>
+      <DetailBackLink href="/clients" label="All clients" />
+      <PageHeader title={client.name} description={`${CLIENT_TYPE_LABEL[client.type]} client`} />
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Contact information</CardTitle>
+            <CardDescription>Live client record</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Primary contact</p>
+              <p className="mt-1 font-medium">{client.contact || 'Not entered'}</p>
+            </div>
+            <div className="grid gap-2">
+              {client.phone ? (
+                <a className="flex min-h-11 items-center gap-2 rounded-lg border px-3 hover:bg-muted" href={`tel:${client.phone}`}>
+                  <Phone className="size-4 text-primary" /> {client.phone}
+                </a>
+              ) : <p className="text-sm text-muted-foreground">No phone entered.</p>}
+              {client.email ? (
+                <a className="flex min-h-11 items-center gap-2 rounded-lg border px-3 hover:bg-muted" href={`mailto:${client.email}`}>
+                  <Mail className="size-4 text-primary" /> <span className="truncate">{client.email}</span>
+                </a>
+              ) : <p className="text-sm text-muted-foreground">No email entered.</p>}
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Service address</p>
+              <p className="mt-1">{[client.address, client.city].filter(Boolean).join(', ') || 'Not entered'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Notes</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm">{client.notes || 'No client notes.'}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Jobs</CardTitle>
+            <CardDescription>{relatedJobs.length} connected job{relatedJobs.length === 1 ? '' : 's'}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {!relatedJobs.length && <p className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">No jobs connected to this client.</p>}
+            {relatedJobs.map((job) => (
+              <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 rounded-lg border p-3 hover:border-primary/40 hover:bg-primary/5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{job.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{job.code} · {formatDate(job.scheduledDate)}</p>
+                </div>
+                <StatusBadge status={job.status} />
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  )
+}
+
+export function JobDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { jobs, clients, employees, timeEntries, currentUser, isAdmin } = useStore()
+  const job = jobs.find((record) => record.id === id)
+  const allowed = isAdmin || Boolean(job?.assignedTo.includes(currentUser.id))
+  if (!job || !allowed) return <MissingRecord label="Job" href="/jobs" />
+  const client = clients.find((record) => record.id === job.clientId)
+  const entries = timeEntries.filter((entry) => entry.jobId === job.id)
+  const labourHours = entries.reduce((sum, entry) => sum + entryHours(entry, Date.now()), 0)
+
+  return (
+    <>
+      <DetailBackLink href="/jobs" label={isAdmin ? 'All jobs' : 'My jobs'} />
+      <PageHeader title={job.title} description={`${job.code} · ${CATEGORY_LABEL[job.category]}`}>
+        <StatusBadge status={job.status} />
+      </PageHeader>
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <Card>
+          <CardHeader><CardTitle>Job details</CardTitle></CardHeader>
+          <CardContent className="grid gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Customer</p>
+              {client ? (
+                isAdmin ? (
+                  <Link className="mt-1 inline-block font-medium hover:text-primary hover:underline" href={`/clients/${client.id}`}>{client.name}</Link>
+                ) : (
+                  <p className="mt-1 font-medium">{client.name}</p>
+                )
+              ) : <p>Client unavailable</p>}
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Location</p>
+              <p className="mt-1">{[job.address, job.city].filter(Boolean).join(', ') || 'Not entered'}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Scheduled</p><p className="mt-1">{formatDate(job.scheduledDate)}</p></div>
+              <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estimate</p><p className="mt-1">{formatHours(job.estimatedHours)}</p></div>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Scope of work</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm">{job.description || 'No scope entered.'}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader><CardTitle>Assigned crew</CardTitle></CardHeader>
+            <CardContent className="grid gap-2">
+              {!job.assignedTo.length && <p className="text-sm text-muted-foreground">No employees assigned.</p>}
+              {job.assignedTo.map((employeeId) => {
+                const employee = employees.find((record) => record.id === employeeId)
+                if (!employee) return null
+                const crew = (
+                  <>
+                    <Avatar><AvatarFallback>{employee.initials}</AvatarFallback></Avatar>
+                    <div className="min-w-0 flex-1"><p className="truncate font-medium">{employee.name}</p><p className="truncate text-xs text-muted-foreground">{employee.title}</p></div>
+                    {isAdmin && <ChevronRight className="size-4 text-muted-foreground" />}
+                  </>
+                )
+                return isAdmin ? (
+                  <Link key={employee.id} href={`/employees/${employee.id}`} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted">
+                    {crew}
+                  </Link>
+                ) : (
+                  <div key={employee.id} className="flex items-center gap-3 rounded-lg border p-3">
+                    {crew}
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Recorded labour</CardTitle><CardDescription>{entries.length} entries</CardDescription></CardHeader>
+            <CardContent><p className="font-mono text-3xl font-semibold">{formatHours(labourHours)}</p><Button className="mt-4 w-full" variant="outline" render={<Link href="/time" />}>View time records</Button></CardContent>
+          </Card>
+        </div>
+      </div>
+    </>
+  )
+}
+
+export function EmployeeDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { employees, jobs, timeEntries, isAdmin } = useStore()
+  if (!isAdmin) return <AccessRestricted />
+  const employee = employees.find((record) => record.id === id)
+  if (!employee) return <MissingRecord label="Employee" href="/employees" />
+  const assignedJobs = jobs.filter((job) => job.assignedTo.includes(employee.id))
+  const { start, end } = getWeekRange()
+  const weekEntries = timeEntries.filter((entry) => {
+    if (entry.employeeId !== employee.id) return false
+    const date = new Date(`${entry.date}T00:00:00`)
+    return date >= start && date < end
+  })
+  const hours = weekEntries.reduce((sum, entry) => sum + entryHours(entry, Date.now()), 0)
+
+  return (
+    <>
+      <DetailBackLink href="/employees" label="All employees" />
+      <PageHeader title={employee.name} description={`${employee.title} · ${employee.role}`} />
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+        <Card>
+          <CardHeader><CardTitle>Employee profile</CardTitle></CardHeader>
+          <CardContent className="grid justify-items-center gap-5 text-center">
+            <Avatar className="size-20"><AvatarFallback className="bg-primary/15 text-xl font-semibold text-primary">{employee.initials}</AvatarFallback></Avatar>
+            <WeeklyHoursRings hours={hours} />
+            <div className="grid w-full gap-2 text-left">
+              {employee.phone && <a className="flex min-h-11 items-center gap-2 rounded-lg border px-3 hover:bg-muted" href={`tel:${employee.phone}`}><Phone className="size-4 text-primary" />{employee.phone}</a>}
+              {employee.email && <a className="flex min-h-11 items-center gap-2 rounded-lg border px-3 hover:bg-muted" href={`mailto:${employee.email}`}><Mail className="size-4 text-primary" /><span className="truncate">{employee.email}</span></a>}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Assigned jobs</CardTitle><CardDescription>{assignedJobs.length} connected job{assignedJobs.length === 1 ? '' : 's'}</CardDescription></CardHeader>
+          <CardContent className="grid gap-2">
+            {!assignedJobs.length && <p className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">No jobs assigned.</p>}
+            {assignedJobs.map((job) => (
+              <Link key={job.id} href={`/jobs/${job.id}`} className="flex items-center gap-3 rounded-lg border p-3 hover:border-primary/40 hover:bg-primary/5">
+                <div className="min-w-0 flex-1"><p className="truncate font-medium">{job.title}</p><p className="mt-1 text-xs text-muted-foreground">{job.code} · {formatDate(job.scheduledDate)}</p></div>
+                <StatusBadge status={job.status} />
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
     </>
   )
 }
@@ -1552,7 +1836,7 @@ function AccessRestricted() {
       </div>
       <h1 className="mt-4 text-xl font-semibold">Admin access required</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Switch to the demo administrator account to view this area.
+        Your signed-in role does not have permission to view this area.
       </p>
       <Button className="mt-5" variant="outline" render={<Link href="/" />}>
         Return to dashboard
