@@ -187,7 +187,7 @@ export function StoreProvider({
       ...prev,
     ])
     runCloud(() =>
-      createSupabaseClient().from('clients').insert({
+      createSupabaseClient().from('sc_clients').insert({
         id: client.id,
         organization_id: organizationId,
         name: client.name,
@@ -215,7 +215,7 @@ export function StoreProvider({
     if (data.city !== undefined) update.city = data.city || null
     if (data.notes !== undefined) update.notes = data.notes || null
     runCloud(() =>
-      createSupabaseClient().from('clients').update(update).eq('id', id),
+      createSupabaseClient().from('sc_clients').update(update).eq('id', id),
     )
   }, [runCloud])
 
@@ -230,7 +230,7 @@ export function StoreProvider({
     if (cloudMode) {
       void (async () => {
         const supabase = createSupabaseClient()
-        const { error } = await supabase.from('jobs').insert({
+        const { error } = await supabase.from('sc_jobs').insert({
           id: job.id,
           organization_id: organizationId,
           client_id: job.clientId,
@@ -247,7 +247,7 @@ export function StoreProvider({
         })
         if (error) return handleCloudError(error.message)
         if (job.assignedTo.length) {
-          const assignmentResult = await supabase.from('job_assignments').insert(
+          const assignmentResult = await supabase.from('sc_job_assignments').insert(
             job.assignedTo.map((employeeId) => ({
               job_id: job.id,
               employee_id: employeeId,
@@ -274,13 +274,13 @@ export function StoreProvider({
       if (data.scheduledDate !== undefined) update.scheduled_date = data.scheduledDate
       if (data.estimatedHours !== undefined) update.estimated_hours = data.estimatedHours
       if (data.description !== undefined) update.description = data.description || null
-      const { error } = await supabase.from('jobs').update(update).eq('id', id)
+      const { error } = await supabase.from('sc_jobs').update(update).eq('id', id)
       if (error) return handleCloudError(error.message)
       if (data.assignedTo) {
-        const removal = await supabase.from('job_assignments').delete().eq('job_id', id)
+        const removal = await supabase.from('sc_job_assignments').delete().eq('job_id', id)
         if (removal.error) return handleCloudError(removal.error.message)
         if (data.assignedTo.length) {
-          const addition = await supabase.from('job_assignments').insert(
+          const addition = await supabase.from('sc_job_assignments').insert(
             data.assignedTo.map((employeeId) => ({
               job_id: id,
               employee_id: employeeId,
@@ -299,7 +299,7 @@ export function StoreProvider({
     }
     setTimeEntries((prev) => [entry, ...prev])
     runCloud(() =>
-      createSupabaseClient().from('time_entries').insert({
+      createSupabaseClient().from('sc_time_entries').insert({
         id: entry.id,
         organization_id: organizationId,
         employee_id: entry.employeeId,
@@ -328,14 +328,14 @@ export function StoreProvider({
     if (data.notes !== undefined) update.notes = data.notes || null
     if (data.status !== undefined) update.status = data.status
     runCloud(() =>
-      createSupabaseClient().from('time_entries').update(update).eq('id', id),
+      createSupabaseClient().from('sc_time_entries').update(update).eq('id', id),
     )
   }, [runCloud])
 
   const deleteTimeEntry = useCallback((id: string) => {
     setTimeEntries((prev) => prev.filter((t) => t.id !== id))
     runCloud(() =>
-      createSupabaseClient().from('time_entries').delete().eq('id', id),
+      createSupabaseClient().from('sc_time_entries').delete().eq('id', id),
     )
   }, [runCloud])
 
@@ -363,7 +363,7 @@ export function StoreProvider({
       ...prev,
     ])
     runCloud(() =>
-      createSupabaseClient().from('time_entries').insert({
+      createSupabaseClient().from('sc_time_entries').insert({
         id: entry.id,
         organization_id: organizationId,
         employee_id: employeeId,
@@ -399,7 +399,7 @@ export function StoreProvider({
     )
     runCloud(() =>
       createSupabaseClient()
-        .rpc('stop_active_timer', { entry_id: entryId }),
+        .rpc('sc_stop_active_timer', { entry_id: entryId }),
     )
   }, [isPreviewMode, runCloud])
 
@@ -416,7 +416,7 @@ export function StoreProvider({
         ),
       )
       runCloud(() =>
-        createSupabaseClient().rpc('start_time_break', { entry_id: entryId }),
+        createSupabaseClient().rpc('sc_start_time_break', { entry_id: entryId }),
       )
     },
     [isPreviewMode, runCloud],
@@ -441,7 +441,7 @@ export function StoreProvider({
         ),
       )
       runCloud(() =>
-        createSupabaseClient().rpc('end_time_break', { entry_id: entryId }),
+        createSupabaseClient().rpc('sc_end_time_break', { entry_id: entryId }),
       )
     },
     [isPreviewMode, runCloud],
@@ -481,7 +481,7 @@ export function StoreProvider({
         return [next, ...prev.map((entry) => (entry.id === entryId ? closed : entry))]
       })
       runCloud(() =>
-        createSupabaseClient().rpc('switch_active_job', {
+        createSupabaseClient().rpc('sc_switch_active_job', {
           entry_id: entryId,
           new_entry_id: newEntryId,
           new_job_id: jobId,
@@ -507,7 +507,7 @@ export function StoreProvider({
         ),
       )
       runCloud(() =>
-        createSupabaseClient().rpc('review_time_entry', {
+        createSupabaseClient().rpc('sc_review_time_entry', {
           entry_id: entryId,
           decision,
         }),
