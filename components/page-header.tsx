@@ -20,7 +20,11 @@ export function PageHeader({
           </p>
         )}
       </div>
-      {children && <div className="flex items-center gap-2">{children}</div>}
+      {children && (
+        <div className="grid w-full gap-2 [&>*]:w-full sm:flex sm:w-auto sm:items-center sm:[&>*]:w-auto">
+          {children}
+        </div>
+      )}
     </div>
   )
 }

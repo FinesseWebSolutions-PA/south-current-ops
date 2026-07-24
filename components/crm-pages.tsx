@@ -81,7 +81,7 @@ import {
 } from '@/lib/types'
 
 const fieldClass =
-  'h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/30'
+  'h-11 w-full rounded-lg border border-input bg-transparent px-3 text-base outline-none focus:border-ring focus:ring-3 focus:ring-ring/30 sm:h-9 sm:px-2.5 sm:text-sm'
 
 function MetricCard({
   label,
@@ -364,7 +364,7 @@ function EmployeeHomePage() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="mt-6 grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 sm:grid-cols-3">
                   {activeEntry.breakStartedAt ? (
                     <Button
                       size="lg"
@@ -716,7 +716,7 @@ export function ClientsPage() {
                 Notes
                 <Textarea name="notes" />
               </label>
-              <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
+              <div className="grid gap-2 sm:col-span-2 sm:flex lg:col-span-3">
                 <Button type="submit">Save client</Button>
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                   Cancel
@@ -1084,7 +1084,7 @@ export function JobsPage() {
                 Scope of work
                 <Textarea name="description" />
               </label>
-              <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
+              <div className="grid gap-2 sm:col-span-2 sm:flex lg:col-span-3">
                 <Button type="submit">Save job</Button>
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
               </div>
@@ -1163,11 +1163,12 @@ export function JobsPage() {
                   <p className="mt-3 line-clamp-2 text-sm">
                     {job.description || 'No scope notes entered.'}
                   </p>
-                  <div className="mt-4 flex items-center justify-between gap-3">
+                  <div className="mt-4 flex flex-col items-stretch gap-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                     <span className="text-xs text-muted-foreground">
                       Scheduled {formatDate(job.scheduledDate)}
                     </span>
                     <Button
+                      className="w-full min-[420px]:w-auto"
                       disabled={
                         current ||
                         Boolean(activeEntry?.breakStartedAt) ||

@@ -56,7 +56,7 @@ const EMPLOYEE_NAV: NavItem[] = [
   { href: '/time', label: 'My Time', icon: FileBarChart },
 ]
 
-function RoleSwitcher() {
+function RoleSwitcher({ compact = false }: { compact?: boolean }) {
   const router = useRouter()
   const {
     employees,
@@ -92,7 +92,10 @@ function RoleSwitcher() {
       <DropdownMenuTrigger
         render={
           <button
-            className="flex w-full items-center gap-3 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-2 text-left transition-colors hover:bg-sidebar-accent"
+            className={cn(
+              'flex items-center rounded-lg border border-sidebar-border bg-sidebar-accent/40 text-left transition-colors hover:bg-sidebar-accent',
+              compact ? 'size-11 justify-center p-1.5' : 'w-full gap-3 p-2',
+            )}
             aria-label="Switch role view"
           >
             <Avatar className="size-9">
@@ -100,7 +103,7 @@ function RoleSwitcher() {
                 {currentUser.initials}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1">
+            <div className={cn('min-w-0 flex-1', compact && 'hidden')}>
               <p className="truncate text-sm font-medium text-sidebar-foreground">
                 {currentUser.name}
               </p>
@@ -113,16 +116,24 @@ function RoleSwitcher() {
                 {isPreviewMode && ' preview'}
               </p>
             </div>
-            {isPreviewMode && (
+            {isPreviewMode && !compact && (
               <Badge className="hidden bg-primary/15 text-primary hover:bg-primary/15 lg:inline-flex">
                 Preview
               </Badge>
             )}
-            <ChevronsUpDown className="size-4 text-sidebar-foreground/60" />
+            <ChevronsUpDown
+              className={cn(
+                'size-4 text-sidebar-foreground/60',
+                compact && 'absolute translate-x-3 translate-y-3 rounded-full bg-sidebar p-0.5',
+              )}
+            />
           </button>
         }
       />
-      <DropdownMenuContent align="end" className="w-72">
+      <DropdownMenuContent
+        align="end"
+        className="w-[min(18rem,calc(100vw-1rem))]"
+      >
         <DropdownMenuLabel>
           {cloudMode ? (
             <span className="flex items-center gap-2">
@@ -239,7 +250,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [employeeRouteAllowed, isAdmin, router])
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-sidebar md:flex">
         <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-4">
           <Image
@@ -291,8 +302,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile top bar */}
-      <div className="fixed inset-x-0 top-0 z-20 flex items-center justify-between border-b border-border bg-sidebar px-4 py-3 md:hidden">
-        <div className="flex items-center gap-2.5">
+      <div className="fixed inset-x-0 top-0 z-30 flex min-h-16 items-center justify-between border-b border-sidebar-border bg-sidebar px-3 py-2 md:hidden">
+        <div className="flex min-w-0 items-center gap-2.5">
           <Image
             src="/brand/south-current-mark.png"
             alt="South Current Electric"
@@ -301,8 +312,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="size-10 object-contain"
             priority
           />
-          <div className="leading-tight">
-            <span className="block text-sm font-bold text-primary">
+          <div className="min-w-0 leading-tight">
+            <span className="block truncate text-sm font-bold text-primary">
               South Current
             </span>
             <span className="block text-[9px] uppercase tracking-[0.16em] text-sidebar-foreground/55">
@@ -310,7 +321,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         </div>
-        <RoleSwitcher />
+        <RoleSwitcher compact />
       </div>
 
       <div className="flex flex-1 flex-col md:pl-64">
@@ -318,7 +329,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={cn(
             'md:hidden',
             isAdmin
-              ? 'mt-16 flex gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2'
+              ? 'sticky top-16 z-20 mt-16 flex gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
               : 'fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-card px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lg',
           )}
         >
@@ -334,14 +345,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={cn(
                   isAdmin
-                    ? 'shrink-0 rounded-md px-3 py-1.5 text-sm font-medium'
-                    : 'flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium',
+                    ? 'flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium'
+                    : 'flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium',
                   active
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground',
                 )}
               >
-                {!isAdmin && <Icon className="size-4" />}
+                <Icon className="size-4" />
                 {item.label}
               </Link>
             )
@@ -380,7 +391,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
         <main
           className={cn(
-            'flex-1 px-4 py-6 md:px-8 md:py-8',
+            'min-w-0 flex-1 px-3 py-5 sm:px-4 md:px-8 md:py-8',
             !isAdmin &&
               (isPreviewMode
                 ? 'pb-24 pt-6 md:pb-8 md:pt-8'

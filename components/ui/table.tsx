@@ -8,11 +8,14 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative -mx-3 w-[calc(100%+1.5rem)] overflow-x-auto px-3 overscroll-x-contain [scrollbar-width:thin] sm:mx-0 sm:w-full sm:px-0"
+      tabIndex={0}
+      role="region"
+      aria-label="Scrollable data table"
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full min-w-max caption-bottom text-sm", className)}
         {...props}
       />
     </div>
@@ -114,4 +117,3 @@ export {
   TableCell,
   TableCaption,
 }
-
