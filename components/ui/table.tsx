@@ -8,7 +8,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative -mx-3 w-[calc(100%+1.5rem)] overflow-x-auto px-3 overscroll-x-contain [scrollbar-width:thin] sm:mx-0 sm:w-full sm:px-0"
+      className="relative -mx-3 w-[calc(100%+1.5rem)] max-w-[calc(100%+1.5rem)] overflow-x-auto px-3 overscroll-x-contain [scrollbar-width:thin] sm:mx-0 sm:w-full sm:max-w-full sm:px-0"
       tabIndex={0}
       role="region"
       aria-label="Scrollable data table"

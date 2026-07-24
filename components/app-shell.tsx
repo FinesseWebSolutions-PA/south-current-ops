@@ -324,12 +324,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <RoleSwitcher compact />
       </div>
 
-      <div className="flex flex-1 flex-col md:pl-64">
+      <div className="flex min-w-0 flex-1 flex-col md:pl-64">
         <nav
           className={cn(
             'md:hidden',
             isAdmin
-              ? 'sticky top-16 z-20 mt-16 flex gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+              ? 'sticky top-16 z-20 mt-16 flex w-full min-w-0 max-w-[100vw] gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
               : 'fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-card px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-lg',
           )}
         >

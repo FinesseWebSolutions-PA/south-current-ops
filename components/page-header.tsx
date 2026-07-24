@@ -21,7 +21,7 @@ export function PageHeader({
         )}
       </div>
       {children && (
-        <div className="grid w-full gap-2 [&>*]:w-full sm:flex sm:w-auto sm:items-center sm:[&>*]:w-auto">
+        <div className="grid min-w-0 w-full gap-2 [&>*]:min-w-0 [&>*]:max-w-full [&>*]:w-full sm:flex sm:w-auto sm:items-center sm:[&>*]:w-auto">
           {children}
         </div>
       )}
